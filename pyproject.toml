@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "queuepi"
+version = "0.1.0"
+description = "A lightweight, self-hosted order queue and pickup display for small restaurants."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Allen B. Downey" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+]
+
+[project.optional-dependencies]
+display = ["pygame"]
+dev = ["pytest", "httpx"]
+
+[project.scripts]
+queuepi-server = "queuepi.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+queuepi = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

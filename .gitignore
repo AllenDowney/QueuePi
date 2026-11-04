@@ -1,0 +1,20 @@
+# Local planning
+PROJECT_BOARD.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+build/
+dist/
+.pytest_cache/
+
+# Runtime data
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+# Default development data dir (database, cookie-signing key)
+data/
