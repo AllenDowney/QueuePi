@@ -1,5 +1,6 @@
 """The HTTP API: routes, status codes, and the staff PIN."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from queuepi.config import Config
@@ -133,6 +134,32 @@ def test_events_record_device(staff, store):
 def test_static_index(client):
     r = client.get("/")
     assert r.status_code == 200 and "QueuePi" in r.text
+
+
+@pytest.mark.parametrize("path", ["/register", "/kitchen", "/staff"])
+def test_staff_pages(client, path):
+    r = client.get(path)
+    assert r.status_code == 200 and "staff.js" in r.text
+    assert r.headers["cache-control"] == "no-cache"
+
+
+@pytest.mark.parametrize("path", ["/staff.js", "/staff.css", "/manifest.webmanifest", "/icon-192.png"])
+def test_static_assets(client, path):
+    assert client.get(path).status_code == 200
+
+
+def test_api_not_cached(client):
+    assert client.get("/api/board").headers["cache-control"] == "no-store"
+
+
+def test_responses_carry_event_for_undo(staff):
+    o = staff.post("/api/orders", json={"number": "42"}).json()
+    r = staff.post(f"/api/events/{o['last_event_id']}/undo")
+    assert r.json()["status"] == "cancelled"
+    o2 = staff.post(f"/api/orders/{o['id']}/transition", json={"to": "waiting", "expect": "cancelled"}).json()
+    assert o2["last_event_id"] > r.json()["last_event_id"]
+    ready = staff.post(f"/api/orders/{o['id']}/transition", json={"to": "ready", "expect": "waiting"}).json()
+    assert staff.post(f"/api/events/{ready['last_event_id']}/undo").json()["status"] == "waiting"
 
 
 def test_board_has_join_url(client):

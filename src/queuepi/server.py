@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -206,8 +206,22 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         log.info("end-of-day reset: cleared %d orders, by %s", n, device)
         return {"cleared": n}
 
-    if STATIC_DIR.is_dir():
-        app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+    # The staff pages: one page, three layouts (chosen by the path).
+    for path in ("/register", "/kitchen", "/staff"):
+        app.add_api_route(path, lambda: FileResponse(STATIC_DIR / "staff.html"), include_in_schema=False)
+
+    @app.middleware("http")
+    async def no_stale_pages(request: Request, call_next):
+        # Make browsers revalidate pages and scripts, so devices pick up a new
+        # version after an update instead of running a cached old one.
+        response = await call_next(request)
+        if not request.url.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-cache")
+        else:
+            response.headers.setdefault("Cache-Control", "no-store")
+        return response
+
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
     return app
 

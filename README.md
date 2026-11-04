@@ -4,7 +4,7 @@ A lightweight, self-hosted order queue and pickup display for small restaurants.
 
 Customers see which order numbers are waiting and which are ready on a monitor; staff add orders and mark them ready from their phones. The order number is the last two digits of the receipt, so there's no point-of-sale integration. Everything runs on one Raspberry Pi 4 (or any Linux computer) with no internet or cloud services.
 
-**Status:** early development. The backend, its tests, and a first version of the customer display work; the staff pages are next.
+**Status:** early development: a working prototype of the server, staff pages, and customer display, not yet tried on a Raspberry Pi.
 
 ## Running locally
 
@@ -24,6 +24,8 @@ python scripts/simulate.py fill --waiting 25 --ready 4   # a lunch rush
 python scripts/simulate.py run --speed 10                # a live queue, 10x speed
 python scripts/simulate.py reset                         # clear the board
 ```
+
+Staff pages: open `http://localhost:8000/` and choose Register, Kitchen, or Both (`/register`, `/kitchen`, `/staff`). Phones on the same network can scan the QR code on the display.
 
 With no config file, the server uses development defaults: PIN `1234`, database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
 

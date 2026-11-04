@@ -3,10 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111418">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/staff.css">
 <title>QueuePi</title>
+<script>
+  // A device that has chosen before goes straight back to its page
+  // (this is also where the home-screen icon starts). "/?choose" shows the menu.
+  try {
+    const last = localStorage.getItem("queuepi.view");
+    if (last && !location.search.includes("choose")) location.replace(last);
+  } catch (e) { /* private mode: just show the choices */ }
+</script>
+<style>
+  .choose { max-width: 420px; margin: 40px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 16px; }
+  .choose a { display: block; padding: 24px; border-radius: 16px; background: var(--panel); color: var(--text);
+              text-decoration: none; font-size: 26px; font-weight: 700; }
+  .choose a span { display: block; font-size: 16px; font-weight: normal; color: var(--muted); margin-top: 4px; }
+</style>
 </head>
 <body>
-<h1>QueuePi</h1>
-<p>The register and kitchen pages are not built yet (board Task 6). The API is at <code>/api/board</code>.</p>
+<div class="choose">
+  <h1>QueuePi</h1>
+  <p class="muted">What is this device for?</p>
+  <a href="/register">Register<span>Add orders as receipts are printed</span></a>
+  <a href="/kitchen">Kitchen<span>Mark orders ready and picked up</span></a>
+  <a href="/staff">Both<span>A tablet that does everything</span></a>
+</div>
 </body>
 </html>

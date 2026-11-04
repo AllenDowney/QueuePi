@@ -155,6 +155,9 @@ class Order:
     picked_up_at: str | None
     cancelled_at: str | None
     cleared_at: str | None
+    # The latest change to this order, so a client can offer to undo what it
+    # just did. Filled in by single-order lookups; None in board listings.
+    last_event_id: int | None = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> Order:
@@ -387,7 +390,11 @@ class OrderStore:
 
     @staticmethod
     def _get(conn: sqlite3.Connection, order_id: int) -> Order:
-        row = conn.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+        row = conn.execute(
+            "SELECT *, (SELECT MAX(id) FROM events WHERE order_id = orders.id) AS last_event_id"
+            " FROM orders WHERE id = ?",
+            (order_id,),
+        ).fetchone()
         if row is None:
             raise NotFound(f"no order {order_id}")
         return Order.from_row(row)

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111418">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QueuePi">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="stylesheet" href="/staff.css">
+<title>QueuePi</title>
+</head>
+<body>
+
+<header class="bar">
+  <span class="title" id="title">QueuePi</span>
+  <span class="offline" id="offline" hidden>Offline, retrying…</span>
+  <details class="menu" id="menu">
+    <summary aria-label="Menu">☰</summary>
+    <nav>
+      <a href="/register">Register</a>
+      <a href="/kitchen">Kitchen</a>
+      <a href="/staff">Both (tablet)</a>
+      <button type="button" id="reset">End of day: clear board</button>
+      <button type="button" id="logout">Log out this device</button>
+    </nav>
+  </details>
+</header>
+
+<main>
+  <section class="register" id="register">
+    <div class="entry">
+      <div class="readout" id="readout" aria-live="polite">––</div>
+      <div class="hint">Last two digits of the receipt</div>
+    </div>
+    <div class="keypad" id="keypad">
+      <button type="button" data-key="1">1</button>
+      <button type="button" data-key="2">2</button>
+      <button type="button" data-key="3">3</button>
+      <button type="button" data-key="4">4</button>
+      <button type="button" data-key="5">5</button>
+      <button type="button" data-key="6">6</button>
+      <button type="button" data-key="7">7</button>
+      <button type="button" data-key="8">8</button>
+      <button type="button" data-key="9">9</button>
+      <button type="button" data-key="back" class="key-back" aria-label="Delete">⌫</button>
+      <button type="button" data-key="0">0</button>
+      <button type="button" data-key="add" class="key-add">Add</button>
+    </div>
+    <h2>On the board <span class="muted">(newest first; tap ✕ to remove a mistake)</span></h2>
+    <ul class="added" id="added"></ul>
+  </section>
+
+  <section class="kitchen" id="kitchen">
+    <h2>Waiting <span class="muted">tap when ready</span></h2>
+    <div class="orders" id="waiting"></div>
+    <h2 class="ready-title">Ready <span class="muted">tap when picked up</span></h2>
+    <div class="orders ready" id="ready"></div>
+    <details class="recent" id="recent">
+      <summary>Recent changes</summary>
+      <ul id="recent-list"></ul>
+    </details>
+  </section>
+</main>
+
+<div class="toast" id="toast" hidden>
+  <span id="toast-text"></span>
+  <button type="button" id="toast-undo" hidden>Undo</button>
+</div>
+
+<div class="login" id="login" hidden>
+  <form id="login-form">
+    <h1>QueuePi</h1>
+    <label for="pin">Staff PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off" required>
+    <button type="submit">Log in</button>
+    <p class="error" id="login-error" hidden>Wrong PIN</p>
+  </form>
+</div>
+
+<script src="/staff.js"></script>
+</body>
+</html>
