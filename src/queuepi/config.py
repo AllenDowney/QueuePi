@@ -8,6 +8,7 @@ exists, else nothing (development defaults). Example:
     host = "0.0.0.0"
     port = 8000
     log_file = "/var/log/queuepi/queuepi.log"
+    public_url = "http://queuepi.local/"   # optional; for the join QR code
 """
 
 from __future__ import annotations
@@ -29,6 +30,9 @@ class Config:
     host: str = "0.0.0.0"
     port: int = 8000
     log_file: Path | None = None  # None: log to stderr only
+    # The address phones should use, shown as a QR code on the display.
+    # None: work it out from this computer's LAN address and the port.
+    public_url: str | None = None
 
     @property
     def db_path(self) -> Path:

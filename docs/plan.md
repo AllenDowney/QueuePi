@@ -156,6 +156,7 @@ Drop `models.py` and `templates/` unless we need them: Pydantic request/response
 | 2026-11-03 | Clients poll `/api/board` (display ~1 s, phones ~2 s; a write's response updates the acting page at once); no WebSockets/SSE | Recovers by itself after restarts, Wi-Fi drops and phone sleep; staleness is easy to detect. Revisit SSE if the pilot shows lag matters |
 | 2026-11-04 | Phones join by scanning a QR code on the customer display. Prototype: always shown. Appliance: shown from boot until a staff phone dismisses it; staff page can bring it back. Then "Add to Home Screen" | Until a first phone is connected, no staff button can exist; see "Customer display" |
 | 2026-11-04 | Monitor arrived; Pi 4 expected in a few days. Prototype the display on the laptop (window, or full screen on the monitor); join QR code encodes the laptop's LAN address | Some networks (guest, campus, corporate) block device-to-device traffic: use a home router or phone hotspot |
+| 2026-11-04 | Leaning (not decided): dedicated shop devices connect directly to the Pi's own Wi-Fi access point, not employees' phones on the shop Wi-Fi. Prototype it with the laptop as a NetworkManager hotspot (its Intel card supports AP mode) | Fixed address `10.42.0.1`; no dependence on shop Wi-Fi. Devices on a network with no internet may warn or switch to mobile data; the Pi has no clock source without internet (see Task 9). The shop-Wi-Fi rows below still apply if we don't go this way |
 | 2026-11-04 | On the Pi: port 80, a reserved address on the shop router, and `queuepi.local` (mDNS) as a bonus | Android's `.local` support to test |
 | 2026-11-03 | Pygame source on the Pi (apt vs. PyPI wheel) decided after the Task 3 hardware test | |
 | 2026-11-03 | Hardware: 24" monitor arrives 2026-11-04, Pi 4 a few days later. Until then, run the display full screen on the monitor attached to the dev laptop, and prototype the staff pages on real phones over the LAN | Display path (Task 3) waits for the Pi |
@@ -184,6 +185,7 @@ Drop `models.py` and `templates/` unless we need them: Pydantic request/response
 - Preparation-time estimates, only after the pilot shows the data is reliable.
 - A "Preparing" status, only if the pilot shows it helps.
 - Export of timing data (CSV) for analysis.
+- If dedicated devices are used: kiosk mode on them (Android screen pinning, iOS Guided Access), so they open straight to the staff page.
 - Read-only filesystem / overlayfs on the Pi to survive power cuts (Pi OS `raspi-config` supports an overlay); conflicts with writing the database, so the DB would go on a separate writable partition or USB stick.
 
 ## Reference

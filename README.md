@@ -4,7 +4,7 @@ A lightweight, self-hosted order queue and pickup display for small restaurants.
 
 Customers see which order numbers are waiting and which are ready on a monitor; staff add orders and mark them ready from their phones. The order number is the last two digits of the receipt, so there's no point-of-sale integration. Everything runs on one Raspberry Pi 4 (or any Linux computer) with no internet or cloud services.
 
-**Status:** early development. The backend and its tests work; the staff pages and the customer display are next.
+**Status:** early development. The backend, its tests, and a first version of the customer display work; the staff pages are next.
 
 ## Running locally
 
@@ -13,6 +13,16 @@ mamba env create -f environment.yml     # once
 mamba activate QueuePi
 queuepi-server                          # http://localhost:8000
 pytest                                  # run the tests
+```
+
+In a second terminal, the customer display and some made-up orders:
+
+```bash
+queuepi-display --windowed              # a resizable window; Esc or q quits
+queuepi-display --display 1             # full screen on a second monitor
+python scripts/simulate.py fill --waiting 25 --ready 4   # a lunch rush
+python scripts/simulate.py run --speed 10                # a live queue, 10x speed
+python scripts/simulate.py reset                         # clear the board
 ```
 
 With no config file, the server uses development defaults: PIN `1234`, database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
@@ -48,6 +58,8 @@ Order numbers are always two-character strings (`"07"`), so leading zeros surviv
 src/queuepi/db.py       order storage and lifecycle rules (SQLite)
 src/queuepi/server.py   FastAPI app: API, staff PIN, static pages
 src/queuepi/config.py   config file
+src/queuepi/display.py  customer display (Pygame), a client of /api/board
+scripts/simulate.py     made-up orders for testing
 src/queuepi/static/     staff web pages
 tests/                  pytest
 docs/                   plan and design notes

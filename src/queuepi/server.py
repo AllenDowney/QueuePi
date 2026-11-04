@@ -13,6 +13,7 @@ import hmac
 import logging
 import logging.handlers
 import secrets
+import socket
 import sys
 from pathlib import Path
 
@@ -93,6 +94,29 @@ def check_cookie(key: bytes, pin: str, value: str | None) -> str | None:
     return None
 
 
+# --- join URL ----------------------------------------------------------------
+
+
+def lan_address() -> str:
+    """This computer's address on the local network: the one its default
+    route uses. Connecting a UDP socket sends nothing; it just picks the
+    interface. Falls back to localhost if there's no network."""
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        try:
+            s.connect(("192.0.2.1", 9))  # TEST-NET-1: never routed anywhere real
+            return s.getsockname()[0]
+        except OSError:
+            return "127.0.0.1"
+
+
+def join_url(cfg: Config) -> str:
+    """The URL phones use to reach the staff pages (for the display's QR code)."""
+    if cfg.public_url:
+        return cfg.public_url
+    port = "" if cfg.port == 80 else f":{cfg.port}"
+    return f"http://{lan_address()}{port}/"
+
+
 # --- the app -----------------------------------------------------------------
 
 
@@ -124,7 +148,7 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
 
     @app.get("/api/board")
     def board() -> dict:
-        return store.board()
+        return {**store.board(), "join_url": join_url(cfg)}
 
     @app.post("/api/login")
     def login(body: LoginRequest, response: Response) -> dict:
@@ -211,7 +235,8 @@ def main() -> None:
     if cfg.pin == config_module.DEV_PIN:
         log.warning("using the development PIN %s; set `pin` in the config file", cfg.pin)
     app = create_app(cfg)
-    log.info("QueuePi %s: database %s, http://%s:%d", __version__, cfg.db_path, cfg.host, cfg.port)
+    log.info("QueuePi %s: database %s, listening on %s:%d", __version__, cfg.db_path, cfg.host, cfg.port)
+    log.info("phones join at %s", join_url(cfg))
     # One worker: SQLite has one writer anyway, and this keeps memory small on the Pi.
     uvicorn.run(app, host=cfg.host, port=cfg.port, workers=1, log_level="warning")
 

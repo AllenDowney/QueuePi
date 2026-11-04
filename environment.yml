@@ -9,6 +9,7 @@ dependencies:
   - fastapi
   - uvicorn
   - pygame
+  - segno          # QR code on the display
   - pytest
   - httpx          # FastAPI TestClient
   - pip

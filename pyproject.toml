@@ -17,11 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-display = ["pygame"]
+display = ["pygame", "segno"]
 dev = ["pytest", "httpx"]
 
 [project.scripts]
 queuepi-server = "queuepi.server:main"
+queuepi-display = "queuepi.display:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

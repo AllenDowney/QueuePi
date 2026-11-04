@@ -133,3 +133,21 @@ def test_events_record_device(staff, store):
 def test_static_index(client):
     r = client.get("/")
     assert r.status_code == 200 and "QueuePi" in r.text
+
+
+def test_board_has_join_url(client):
+    url = client.get("/api/board").json()["join_url"]
+    assert url.startswith("http://") and url.endswith(":8000/")
+
+
+def test_join_url_from_config(cfg, store):
+    cfg.public_url = "http://queuepi.local/"
+    c = TestClient(create_app(cfg, store))
+    assert c.get("/api/board").json()["join_url"] == "http://queuepi.local/"
+
+
+def test_join_url_drops_port_80(cfg):
+    from queuepi.server import join_url
+
+    cfg.port = 80
+    assert not join_url(cfg).rstrip("/").split("//")[1].endswith(":80")
