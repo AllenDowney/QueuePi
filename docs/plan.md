@@ -109,6 +109,10 @@ Staff PIN, set in a config file (`/etc/queuepi/config.toml` on the Pi, a local f
 - **Overflow (prototype):** waiting numbers in a fixed grid sized for readability (e.g. 5×4). If more, either show them in pages that rotate every few seconds ("1/2"), or shrink once to a second size and then page. Sort waiting numbers **numerically**, not by entry time, so the display doesn't imply a FIFO order. Customers look for their own number, and a numeric sort makes that easy. To try both in Task 7/8.
 - **Staleness:** if the last successful poll is more than ~5 s old, show a clear banner ("Connection lost, updating…"); after ~30 s, hide the lists rather than show possibly wrong data.
 - **Dev mode:** `--windowed` (scaled window) on the desktop; full screen on the Pi.
+- **Join QR code:** the display shows a QR code for the staff pages (plus the address in text), because until a first phone is connected there is no other way in.
+  - *Prototype:* always on screen, in a corner, so we can connect a phone at any time.
+  - *Appliance (Task 9):* shown from boot until a logged-in phone dismisses it (`POST /api/setup/dismiss`). A staff-page button brings it back for adding another phone. A restart shows it again, which also reveals the address if the Pi's address ever changes.
+  - The server reports the URL in `/api/board` (`join_url`): the `public_url` setting if set, else the LAN address of its default interface. The display draws the QR itself (`segno`, pure Python).
 
 ## Project structure (proposed)
 
@@ -150,6 +154,8 @@ Drop `models.py` and `templates/` unless we need them: Pydantic request/response
 | 2026-11-03 | Waiting numbers on the display sorted numerically (no implied FIFO) | |
 | 2026-11-03 | Append-only `events` table logs every status change (order, from, to, time, client tag) | Audit trail for the pilot; basis for "undo last action" |
 | 2026-11-03 | Clients poll `/api/board` (display ~1 s, phones ~2 s; a write's response updates the acting page at once); no WebSockets/SSE | Recovers by itself after restarts, Wi-Fi drops and phone sleep; staleness is easy to detect. Revisit SSE if the pilot shows lag matters |
+| 2026-11-04 | Phones join by scanning a QR code on the customer display. Prototype: always shown. Appliance: shown from boot until a staff phone dismisses it; staff page can bring it back. Then "Add to Home Screen" | Until a first phone is connected, no staff button can exist; see "Customer display" |
+| 2026-11-04 | On the Pi: port 80, a reserved address on the shop router, and `queuepi.local` (mDNS) as a bonus | Android's `.local` support to test |
 | 2026-11-03 | Pygame source on the Pi (apt vs. PyPI wheel) decided after the Task 3 hardware test | |
 | 2026-11-03 | Hardware: 24" monitor arrives 2026-11-04, Pi 4 a few days later. Until then, run the display full screen on the monitor attached to the dev laptop, and prototype the staff pages on real phones over the LAN | Display path (Task 3) waits for the Pi |
 
