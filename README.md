@@ -10,7 +10,7 @@ Customers see which order numbers are waiting and which are ready on a monitor; 
 
 ```bash
 mamba env create -f environment.yml     # once
-mamba activate QueuePi
+conda activate QueuePi                  # mamba 2 can't activate until `mamba shell init`
 queuepi-server                          # http://localhost:8000
 pytest                                  # run the tests
 ```
