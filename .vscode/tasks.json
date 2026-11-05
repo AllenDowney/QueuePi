@@ -20,7 +20,7 @@
     },
     {
       "label": "QueuePi: display (monitor)",
-      "detail": "Full screen on the external monitor, or the laptop screen if none; Esc or q quits",
+      "detail": "Full screen on the external monitor, or the laptop screen if none; Esc for a window, F or F11 back to full screen, q quits",
       "type": "shell",
       "command": "conda run -n QueuePi --no-capture-output queuepi-display --display 1",
       "isBackground": true,

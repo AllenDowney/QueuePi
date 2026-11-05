@@ -18,7 +18,7 @@ pytest                                  # run the tests
 In a second terminal, the customer display and some made-up orders:
 
 ```bash
-queuepi-display --windowed              # a resizable window; Esc or q quits
+queuepi-display --windowed              # a window; F or F11 full screen, Esc back, q quits
 queuepi-display --display 1             # full screen on a second monitor
 queuepi-display --no-animation          # no celebration when an order is ready
 python scripts/simulate.py fill --waiting 25 --ready 4   # a lunch rush

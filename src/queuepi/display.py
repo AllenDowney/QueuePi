@@ -479,19 +479,26 @@ def main(argv: list[str] | None = None) -> None:
         pygame.image.save(renderer.draw(make_view(board, last_ok, time.monotonic())), args.screenshot)
         return
 
-    if args.windowed:
-        w, h = (int(x) for x in args.size.lower().split("x"))
-        screen = pygame.display.set_mode((w, h), pygame.RESIZABLE)
-    else:
-        monitors = pygame.display.get_num_displays()
-        display = args.display
-        if not 0 <= display < monitors:
-            display = monitors - 1
-            print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
-                  f"using monitor {display}", file=sys.stderr)
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
-        pygame.mouse.set_visible(False)
-    pygame.display.set_caption("QueuePi")
+    window_size = tuple(int(x) for x in args.size.lower().split("x"))
+    monitors = pygame.display.get_num_displays()
+    display = args.display
+    if not 0 <= display < monitors:
+        display = monitors - 1
+        print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
+              f"using monitor {display}", file=sys.stderr)
+
+    def open_screen(fullscreen: bool):
+        """Full screen on the chosen monitor (no mouse pointer), or a window."""
+        if fullscreen:
+            screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
+        else:
+            screen = pygame.display.set_mode(window_size, pygame.RESIZABLE, display=display)
+        pygame.mouse.set_visible(not fullscreen)
+        pygame.display.set_caption("QueuePi")
+        return screen
+
+    fullscreen = not args.windowed
+    screen = open_screen(fullscreen)
 
     renderer = Renderer()
     poller.start()
@@ -509,8 +516,15 @@ def main(argv: list[str] | None = None) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return
-            if event.type == pygame.KEYDOWN and event.key in (pygame.K_ESCAPE, pygame.K_q):
-                return
+            # Keys: q quits; F or F11 toggles full screen; Esc leaves it.
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
+                    return
+                toggle = event.key in (pygame.K_f, pygame.K_F11)
+                if toggle or (event.key == pygame.K_ESCAPE and fullscreen):
+                    fullscreen = not fullscreen
+                    screen = open_screen(fullscreen)
+                    last_view = None
             if event.type in (pygame.VIDEORESIZE, pygame.WINDOWEXPOSED):
                 last_view = None
 
