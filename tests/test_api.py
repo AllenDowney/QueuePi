@@ -178,3 +178,36 @@ def test_join_url_drops_port_80(cfg):
 
     cfg.port = 80
     assert not join_url(cfg).rstrip("/").split("//")[1].endswith(":80")
+
+
+# --- choosing the address for the QR code -------------------------------------
+
+IP_OUTPUT = """\
+3: wlo1    inet 192.168.1.7/24 brd 192.168.1.255 scope global dynamic noprefixroute wlo1\\       valid_lft 80000sec preferred_lft 80000sec
+5: tun0    inet 10.31.18.118/24 scope global tun0\\       valid_lft forever preferred_lft forever
+6: docker0    inet 172.17.0.1/16 brd 172.17.255.255 scope global docker0\\       valid_lft forever preferred_lft forever
+"""
+
+
+def test_lan_address_skips_vpn_and_docker():
+    from queuepi.server import pick_lan_address
+    assert pick_lan_address(IP_OUTPUT) == "192.168.1.7"
+
+
+def test_lan_address_access_point():
+    from queuepi.server import pick_lan_address
+    out = "3: wlan0    inet 10.42.0.1/24 brd 10.42.0.255 scope global noprefixroute wlan0\\n"
+    assert pick_lan_address(out) == "10.42.0.1"
+
+
+def test_lan_address_prefers_private():
+    from queuepi.server import pick_lan_address
+    out = ("2: eth0    inet 203.0.113.5/24 scope global eth0\n"
+           "3: wlan0    inet 10.42.0.1/24 scope global wlan0\n")
+    assert pick_lan_address(out) == "10.42.0.1"
+
+
+def test_lan_address_none():
+    from queuepi.server import pick_lan_address
+    assert pick_lan_address("") is None
+    assert pick_lan_address("5: tun0    inet 10.8.0.2/24 scope global tun0\n") is None

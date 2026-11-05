@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import logging
 import logging.handlers
 import secrets
 import socket
+import subprocess
 import sys
 from pathlib import Path
 
@@ -97,10 +99,46 @@ def check_cookie(key: bytes, pin: str, value: str | None) -> str | None:
 # --- join URL ----------------------------------------------------------------
 
 
+# Interfaces phones can't reach: VPNs, containers, virtual bridges.
+VIRTUAL_PREFIXES = ("tun", "tap", "wg", "ppp", "docker", "br-", "virbr", "veth", "lo")
+
+
+def pick_lan_address(ip_output: str) -> str | None:
+    """Choose the address phones should use from `ip -4 -o addr` output:
+    the first one on a real (Wi-Fi or Ethernet) interface, preferring
+    private addresses. Returns None if there isn't one."""
+    found = []
+    for line in ip_output.splitlines():
+        fields = line.split()
+        if "inet" not in fields:
+            continue
+        iface = fields[1]
+        addr = fields[fields.index("inet") + 1].split("/")[0]
+        if iface.startswith(VIRTUAL_PREFIXES):
+            continue
+        try:
+            private = ipaddress.ip_address(addr).is_private
+        except ValueError:
+            continue
+        found.append((not private, addr))
+    return min(found)[1] if found else None
+
+
 def lan_address() -> str:
-    """This computer's address on the local network: the one its default
-    route uses. Connecting a UDP socket sends nothing; it just picks the
-    interface. Falls back to localhost if there's no network."""
+    """This computer's address on the local network, for the QR code.
+
+    Asks `ip` for the addresses of real interfaces, so a VPN doesn't win.
+    If that fails (no `ip` command), uses the interface of the default route:
+    connecting a UDP socket sends nothing, it just picks the interface.
+    Falls back to localhost if there's no network."""
+    try:
+        out = subprocess.run(["ip", "-4", "-o", "addr", "show", "scope", "global"],
+                             capture_output=True, text=True, timeout=2).stdout
+        addr = pick_lan_address(out)
+        if addr:
+            return addr
+    except (OSError, subprocess.SubprocessError):
+        pass
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         try:
             s.connect(("192.0.2.1", 9))  # TEST-NET-1: never routed anywhere real
