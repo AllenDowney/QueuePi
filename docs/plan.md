@@ -160,6 +160,7 @@ Drop `models.py` and `templates/` unless we need them: Pydantic request/response
 | 2026-11-04 | On the Pi: port 80, a reserved address on the shop router, and `queuepi.local` (mDNS) as a bonus | Android's `.local` support to test |
 | 2026-11-03 | Pygame source on the Pi (apt vs. PyPI wheel) decided after the Task 3 hardware test | |
 | 2026-11-03 | Hardware: 24" monitor arrives 2026-11-04, Pi 4 a few days later. Until then, run the display full screen on the monitor attached to the dev laptop, and prototype the staff pages on real phones over the LAN | Display path (Task 3) waits for the Pi |
+| 2026-11-04 | Staff PIN optional (`require_pin`): off in development (no config file), on by default with a config file. Off for now while prototyping on phones | Decide for the pilot whether the Pi's own Wi-Fi password is enough, since only shop devices join it |
 
 ## Open questions (for Allen)
 
