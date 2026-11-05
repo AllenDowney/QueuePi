@@ -19,12 +19,15 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 import sys
 import threading
 import time
 import urllib.request
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from . import animation
 
 if TYPE_CHECKING:
     import pygame
@@ -57,6 +60,8 @@ READY_NUM = (96, 214, 162)  # logo green, lightened to read on dark
 PAPER = (244, 242, 241)
 INK = (25, 25, 25)
 HIGHLIGHT = (238, 177, 17)  # logo gold
+PLUM_LIGHT = (190, 165, 205)  # the staff pages' plum, lightened
+CONFETTI_COLORS = [HIGHLIGHT, READY_NUM, PLUM_LIGHT, PAPER]
 WARN_BG = (176, 0, 32)
 
 
@@ -149,6 +154,38 @@ def make_view(board: dict | None, last_ok: float | None, now: float) -> View:
     )
 
 
+# --- layout --------------------------------------------------------------------
+
+HEADER_HEIGHT = 250
+# (left, top, width, height) on the 1920x1080 canvas.
+WAITING_RECT = (40, 280, 950, 750)
+READY_RECT = (1020, 280, 860, 750)
+BELOW_HEADER = (0, HEADER_HEIGHT, WIDTH, HEIGHT - HEADER_HEIGHT)
+WAITING_MAX_FONT = 200
+READY_MAX_FONT = 300
+
+
+def panel_area(rect: tuple[int, int, int, int]) -> tuple[int, int, int, int]:
+    """The part of a panel where numbers go, under its title."""
+    left, top, width, height = rect
+    return left + 20, top + 130, width - 40, height - 150
+
+
+def panel_cells(rect, panel: Panel, max_font: int) -> list[tuple[str, tuple[float, float], int]]:
+    """Where each number on the panel's current page is drawn:
+    (number, center, font size)."""
+    left, top, width, height = panel_area(rect)
+    g = panel.grid
+    cell_w, cell_h = width / g.cols, height / g.rows
+    # Two digits are about 1.1 em wide in this font.
+    size = int(min(cell_h * 0.8, cell_w * 0.85 / 1.1, max_font))
+    cells = []
+    for i, number in enumerate(panel.numbers):
+        r, col = divmod(i, g.cols)
+        cells.append((number, (left + cell_w * (col + 0.5), top + cell_h * (r + 0.5)), size))
+    return cells
+
+
 # --- polling -----------------------------------------------------------------
 
 
@@ -213,6 +250,7 @@ class Renderer:
         self.fonts: dict[int, pygame.font.Font] = {}
         self.qr_cache: tuple[str, int, pygame.Surface] | None = None
         self.logo: pygame.Surface | None = None
+        self.big_cache: dict[str, pygame.Surface] = {}
 
     def set_logo(self, png: bytes | None) -> None:
         """Use these PNG bytes as the shop logo (None: no logo)."""
@@ -262,13 +300,40 @@ class Renderer:
         self.qr_cache = (url, size, surf)
         return surf
 
-    def draw(self, view: View) -> pygame.Surface:
+    def draw(self, view: View, celebration: animation.Celebration | None = None,
+             now: float = 0.0, hide: frozenset[str] = frozenset()) -> pygame.Surface:
+        """Draw one frame. During a celebration, the celebrating numbers fly
+        over the lists; `hide` keeps numbers out of the Ready panel until
+        they land there (including ones waiting for their turn)."""
         pg = self.pg
         c = self.canvas
         c.fill(BG)
+        pg.draw.rect(c, HEADER_BG, (0, 0, WIDTH, HEADER_HEIGHT))
+        if celebration:
+            self.text("Ready!", 190, READY_NUM, center=(WIDTH // 2, HEADER_HEIGHT // 2 + 8))
+        else:
+            self.draw_header(view)
 
-        # Header: how to find your number, an example receipt, the join code.
-        pg.draw.rect(c, HEADER_BG, (0, 0, WIDTH, 250))
+        self.draw_panel(pg.Rect(WAITING_RECT), WAITING_BG, "Waiting", WAITING_NUM, view.waiting, view,
+                        max_font=WAITING_MAX_FONT)
+        self.draw_panel(pg.Rect(READY_RECT), READY_BG, "Ready for pickup", READY_NUM, view.ready, view,
+                        max_font=READY_MAX_FONT, hide=hide)
+        if celebration:
+            self.draw_celebration(view, celebration, now)
+
+        # Connection warnings.
+        if view.state == "stale":
+            band = pg.Rect(0, HEIGHT - 70, WIDTH, 70)
+            pg.draw.rect(c, WARN_BG, band)
+            self.text(
+                "Lost connection to the order system. This list may be out of date.",
+                44, TEXT, center=band.center,
+            )
+        return c
+
+    def draw_header(self, view: View) -> None:
+        """How to find your number, an example receipt, the join code."""
+        pg = self.pg
         left = 60
         if self.logo:
             card = pg.Rect(30, 25, 330, 200)
@@ -283,21 +348,49 @@ class Renderer:
         if view.join_url:
             self.draw_join(view.join_url, pg.Rect(1690, 18, 200, 232))
 
-        # Waiting (left) and ready (right), so numbers move left to right.
-        waiting_rect = pg.Rect(40, 280, 950, 750)
-        ready_rect = pg.Rect(1020, 280, 860, 750)
-        self.draw_panel(ready_rect, READY_BG, "Ready for pickup", READY_NUM, view.ready, view, max_font=300)
-        self.draw_panel(waiting_rect, WAITING_BG, "Waiting", WAITING_NUM, view.waiting, view, max_font=200)
+    def draw_celebration(self, view: View, cel: animation.Celebration, now: float) -> None:
+        pg = self.pg
+        t = cel.elapsed(now)
+        dim = cel.dim(now)
+        if dim:
+            veil = pg.Surface(BELOW_HEADER[2:], pg.SRCALPHA)
+            veil.fill((*BG, dim))
+            self.canvas.blit(veil, BELOW_HEADER[:2])
 
-        # Connection warnings.
-        if view.state == "stale":
-            band = pg.Rect(0, HEIGHT - 70, WIDTH, 70)
-            pg.draw.rect(c, WARN_BG, band)
-            self.text(
-                "Lost connection to the order system. This list may be out of date.",
-                44, TEXT, center=band.center,
-            )
-        return c
+        # Where each number will land in the Ready panel (it may be on
+        # another page; then it heads for the middle of the panel).
+        targets = {n: (c, size) for n, c, size in panel_cells(READY_RECT, view.ready, READY_MAX_FONT)}
+        rx, ry, rw, rh = READY_RECT
+        fallback = ((rx + rw / 2, ry + rh / 2), 100)
+        if not cel.landed(now):
+            for f in cel.flights:
+                end, end_size = targets.get(f.number, fallback)
+                x, y, size = f.at(t, end, end_size)
+                img = self.big_number(f.number)
+                scale = size / animation.MAX_CENTER_SIZE
+                w, h = img.get_size()
+                scaled = pg.transform.smoothscale(img, (max(1, int(w * scale)), max(1, int(h * scale))))
+                self.canvas.blit(scaled, scaled.get_rect(center=(int(x), int(y))))
+
+        ct = cel.confetti_time(now)
+        if ct is not None:
+            # Pieces shrink away over the last half second.
+            fade = min(1.0, (animation.CONFETTI_LIFE - ct) / 0.5)
+            for p in cel.confetti:
+                x, y, a = p.at(ct)
+                if y > HEIGHT + 40:
+                    continue
+                hw, hh = p.w * fade / 2, p.h * fade / 2
+                ca, sa = math.cos(a), math.sin(a)
+                corners = [(x + dx * ca - dy * sa, y + dx * sa + dy * ca)
+                           for dx, dy in ((-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh))]
+                pg.draw.polygon(self.canvas, CONFETTI_COLORS[p.color], corners)
+
+    def big_number(self, number: str) -> pygame.Surface:
+        """A number rendered once at full celebration size, scaled per frame."""
+        if number not in self.big_cache:
+            self.big_cache[number] = self.font(animation.MAX_CENTER_SIZE).render(number, True, READY_NUM)
+        return self.big_cache[number]
 
     def draw_receipt(self, rect: pygame.Rect) -> None:
         pg = self.pg
@@ -328,7 +421,8 @@ class Renderer:
         self.canvas.blit(qr, qr.get_rect(midtop=(rect.centerx, rect.top)))
         self.text("Staff", 26, MUTED, midtop=(rect.centerx, rect.top + qr.get_height() + 4))
 
-    def draw_panel(self, rect, bg, title, color, panel: Panel, view: View, max_font: int) -> None:
+    def draw_panel(self, rect, bg, title, color, panel: Panel, view: View, max_font: int,
+                   hide: frozenset[str] = frozenset()) -> None:
         pg = self.pg
         pg.draw.rect(self.canvas, bg, rect, border_radius=24)
         self.text(title, 80, color, topleft=(rect.left + 40, rect.top + 30))
@@ -338,20 +432,15 @@ class Renderer:
                 topright=(rect.right - 40, rect.top + 42),
             )
 
-        area = pg.Rect(rect.left + 20, rect.top + 130, rect.width - 40, rect.height - 150)
+        area = pg.Rect(panel_area(tuple(rect)))
         if view.state in ("connecting", "lost"):
             msg = "Connecting…" if view.state == "connecting" else "Reconnecting…"
             self.text(msg, 64, MUTED, center=area.center)
             return
 
-        g = panel.grid
-        cell_w, cell_h = area.width / g.cols, area.height / g.rows
-        # Two digits are about 1.1 em wide in this font.
-        size = int(min(cell_h * 0.8, cell_w * 0.85 / 1.1, max_font))
-        for i, number in enumerate(panel.numbers):
-            r, col = divmod(i, g.cols)
-            center = (area.left + cell_w * (col + 0.5), area.top + cell_h * (r + 0.5))
-            self.text(number, size, color, center=center)
+        for number, center, size in panel_cells(tuple(rect), panel, max_font):
+            if number not in hide:
+                self.text(number, size, color, center=center)
 
 
 # --- main --------------------------------------------------------------------
@@ -364,6 +453,8 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--display", type=int, default=0, help="which monitor to use for full screen")
     ap.add_argument("--size", default="1280x720", help="window size with --windowed")
     ap.add_argument("--screenshot", metavar="PNG", help="draw one frame to a file and exit")
+    ap.add_argument("--no-animation", action="store_true",
+                    help="don't celebrate orders becoming ready")
     args = ap.parse_args(argv)
 
     import os
@@ -405,9 +496,14 @@ def main(argv: list[str] | None = None) -> None:
     renderer = Renderer()
     poller.start()
     clock = pygame.time.Clock()
-    last_view: View | None = None
+    last_view: View | None = None  # the last view drawn; None forces a redraw
+    prev_view: View | None = None  # the view one loop ago, for where numbers were
     last_draw = 0.0
     logo_version: str | None = None
+    watcher = animation.ReadyWatcher()
+    rng = random.Random()
+    celebration: animation.Celebration | None = None
+    queued: list[tuple[list[str], dict]] = []  # batches waiting their turn
 
     while True:
         for event in pygame.event.get():
@@ -427,9 +523,32 @@ def main(argv: list[str] | None = None) -> None:
         board, last_ok = poller.snapshot()
         view = make_view(board, last_ok, now)
         view = View(view.state, view.ready, view.waiting, view.join_url, screen.get_size())
-        # Redraw when something changed, and every few seconds regardless.
-        if view != last_view or now - last_draw > 5:
-            canvas = renderer.draw(view)
+
+        # Orders that just became ready get a celebration, one batch at a time.
+        newly_ready = watcher.update(board, view.state in ("ok", "stale"))
+        if newly_ready and not args.no_animation:
+            source = prev_view.waiting if prev_view else view.waiting
+            starts = {n: (c, size) for n, c, size in panel_cells(WAITING_RECT, source, WAITING_MAX_FONT)}
+            queued.append((newly_ready, starts))
+        if celebration and celebration.done(now):
+            celebration = None
+            last_view = None
+        if celebration is None and queued:
+            numbers, starts = queued.pop(0)
+            wx, wy, ww, wh = WAITING_RECT
+            celebration = animation.plan(
+                numbers, starts, ((wx + ww / 2, wy + wh / 2), WAITING_MAX_FONT // 2),
+                BELOW_HEADER, now, rng, len(CONFETTI_COLORS),
+            )
+        hide = frozenset(n for batch, _ in queued for n in batch)
+        if celebration and not celebration.landed(now):
+            hide |= frozenset(celebration.numbers)
+        prev_view = view
+
+        # Redraw when something changed, and every few seconds regardless;
+        # every frame while celebrating.
+        if celebration or view != last_view or now - last_draw > 5:
+            canvas = renderer.draw(view, celebration, now, hide)
             sw, sh = screen.get_size()
             if (sw, sh) == (WIDTH, HEIGHT):
                 screen.blit(canvas, (0, 0))
@@ -440,7 +559,7 @@ def main(argv: list[str] | None = None) -> None:
                 screen.blit(scaled, scaled.get_rect(center=(sw // 2, sh // 2)))
             pygame.display.flip()
             last_view, last_draw = view, now
-        clock.tick(10)
+        clock.tick(30 if celebration else 10)
 
 
 if __name__ == "__main__":

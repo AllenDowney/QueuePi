@@ -47,6 +47,14 @@
       "problemMatcher": []
     },
     {
+      "label": "QueuePi: simulate orders becoming ready",
+      "detail": "Every 5 seconds, up to 3 at once, to watch the display's animation",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output python scripts/simulate.py ready --batch 3",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
       "label": "QueuePi: clear board",
       "type": "shell",
       "command": "conda run -n QueuePi --no-capture-output python scripts/simulate.py reset",

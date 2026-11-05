@@ -102,6 +102,27 @@ def run(client: Client, rate: float, prep: float, pickup: float, speed: float, r
         time.sleep(0.05)
 
 
+def ready_demo(client: Client, every: float, batch: int, rng: random.Random) -> None:
+    """Show off the display's ready animation: every few seconds, mark the
+    oldest waiting orders ready (sometimes several at once with --batch),
+    keeping some orders waiting and only a few ready."""
+    print(f"marking orders ready every {every:g} s; Ctrl-C to stop")
+    while True:
+        status, board = client.request("GET", "/api/board")
+        waiting, ready = board["waiting"], board["ready"]
+        for order in ready[: max(0, len(ready) - 3)]:  # keep three or so on the board
+            client.move(order, "picked_up")
+        for _ in range(max(0, 8 - len(waiting))):  # keep some waiting
+            client.add(f"{rng.randrange(100):02d}")
+        status, board = client.request("GET", "/api/board")
+        n = rng.randint(1, batch)
+        chosen = board["waiting"][:n]
+        for order in chosen:
+            client.move(order, "ready")
+        print("ready:", " ".join(o["number"] for o in chosen))
+        time.sleep(every)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--server", default="http://127.0.0.1:8000")
@@ -116,6 +137,9 @@ def main() -> None:
     r.add_argument("--prep", type=float, default=6.0, help="median minutes to make an order")
     r.add_argument("--pickup", type=float, default=1.5, help="mean minutes from ready to pickup")
     r.add_argument("--speed", type=float, default=1.0, help="simulated minutes per real minute")
+    d = sub.add_parser("ready", help="mark orders ready every few seconds, to watch the display's animation")
+    d.add_argument("--every", type=float, default=5.0, help="seconds between orders becoming ready")
+    d.add_argument("--batch", type=int, default=1, help="up to this many at once")
     sub.add_parser("reset", help="clear the board (end of day)")
     args = ap.parse_args()
 
@@ -126,6 +150,11 @@ def main() -> None:
     elif args.command == "run":
         try:
             run(client, args.rate, args.prep, args.pickup, args.speed, rng)
+        except KeyboardInterrupt:
+            pass
+    elif args.command == "ready":
+        try:
+            ready_demo(client, args.every, args.batch, rng)
         except KeyboardInterrupt:
             pass
     else:

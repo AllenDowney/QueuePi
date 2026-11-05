@@ -20,8 +20,10 @@ In a second terminal, the customer display and some made-up orders:
 ```bash
 queuepi-display --windowed              # a resizable window; Esc or q quits
 queuepi-display --display 1             # full screen on a second monitor
+queuepi-display --no-animation          # no celebration when an order is ready
 python scripts/simulate.py fill --waiting 25 --ready 4   # a lunch rush
 python scripts/simulate.py run --speed 10                # a live queue, 10x speed
+python scripts/simulate.py ready --batch 3               # watch the display's ready animation
 python scripts/simulate.py reset                         # clear the board
 ```
 
@@ -66,6 +68,7 @@ src/queuepi/db.py       order storage and lifecycle rules (SQLite)
 src/queuepi/server.py   FastAPI app: API, staff PIN, static pages
 src/queuepi/config.py   config file
 src/queuepi/display.py  customer display (Pygame), a client of /api/board
+src/queuepi/animation.py  the display's "order ready" animation (timing, geometry, confetti)
 scripts/simulate.py     made-up orders for testing
 src/queuepi/static/     staff web pages
 tests/                  pytest
