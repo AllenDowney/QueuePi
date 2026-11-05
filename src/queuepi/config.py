@@ -1,9 +1,10 @@
 """Configuration, read from a small TOML file.
 
 The file is found from `$QUEUEPI_CONFIG`, else `/etc/queuepi/config.toml` if it
-exists, else nothing (development defaults). Example:
+exists, else nothing (development defaults: no PIN needed). Example:
 
     pin = "4821"
+    require_pin = true                     # the default with a config file
     data_dir = "/var/lib/queuepi"
     host = "0.0.0.0"
     port = 8000
@@ -26,6 +27,8 @@ DEV_PIN = "1234"
 @dataclass
 class Config:
     pin: str = DEV_PIN
+    # False: anyone on the network can use the staff pages, no PIN.
+    require_pin: bool = True
     data_dir: Path = Path("data")
     host: str = "0.0.0.0"
     port: int = 8000
@@ -60,7 +63,7 @@ def load(path: str | Path | None = None) -> Config:
     if path is None and SYSTEM_CONFIG.exists():
         path = SYSTEM_CONFIG
     if path is None:
-        return Config()
+        return Config(require_pin=False)
 
     with open(path, "rb") as f:
         raw = tomllib.load(f)

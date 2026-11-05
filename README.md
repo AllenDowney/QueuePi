@@ -29,12 +29,13 @@ In VS Code, the same commands are tasks (Terminal > Run Task…, all named `Queu
 
 Staff pages: open `http://localhost:8000/` and choose Register, Kitchen, or Both (`/register`, `/kitchen`, `/staff`). Phones on the same network can scan the QR code on the display.
 
-With no config file, the server uses development defaults: PIN `1234`, database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
+With no config file, the server uses development defaults: no PIN (anyone on the network can use the staff pages), database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
 
 To change these, write a TOML file and point `QUEUEPI_CONFIG` at it (on the Pi, `/etc/queuepi/config.toml` is read automatically):
 
 ```toml
-pin = "4821"
+pin = "4821"                  # with a config file, staff pages need this PIN
+require_pin = true            # the default; false turns the PIN off
 data_dir = "/var/lib/queuepi"
 host = "0.0.0.0"
 port = 8000

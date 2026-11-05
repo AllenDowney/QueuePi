@@ -228,3 +228,35 @@ def test_client_log_rate_limited(client, caplog):
 def test_report_script_served(client):
     assert client.get("/report.js").status_code == 200
     assert '<script src="/report.js">' in client.get("/register").text
+
+
+# --- running without a PIN ----------------------------------------------------
+
+
+@pytest.fixture
+def open_client(tmp_path, store):
+    from queuepi.config import Config
+    return TestClient(create_app(Config(data_dir=tmp_path, require_pin=False), store))
+
+
+def test_no_pin_needed(open_client):
+    assert open_client.get("/api/me").json() == {"staff": True}
+    r = open_client.post("/api/orders", json={"number": "12"})
+    assert r.status_code == 201
+    assert open_client.get("/api/recent").status_code == 200
+
+
+def test_config_defaults_without_file(monkeypatch, tmp_path):
+    from queuepi import config
+    monkeypatch.delenv("QUEUEPI_CONFIG", raising=False)
+    monkeypatch.setattr(config, "SYSTEM_CONFIG", tmp_path / "missing.toml")
+    assert config.load().require_pin is False
+
+
+def test_config_file_requires_pin(tmp_path):
+    from queuepi import config
+    path = tmp_path / "c.toml"
+    path.write_text('pin = "4821"\n')
+    assert config.load(path).require_pin is True
+    path.write_text('pin = "4821"\nrequire_pin = false\n')
+    assert config.load(path).require_pin is False

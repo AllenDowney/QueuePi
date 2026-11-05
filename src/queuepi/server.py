@@ -156,6 +156,10 @@ def lan_address() -> str:
             return "127.0.0.1"
 
 
+def client_host(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
 def join_url(cfg: Config) -> str:
     """The URL phones use to reach the staff pages (for the display's QR code)."""
     if cfg.public_url:
@@ -182,8 +186,13 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         return JSONResponse({"detail": str(exc), "code": exc.code}, status_code=status)
 
     def staff(request: Request) -> str:
-        device = check_cookie(key, cfg.pin, request.cookies.get(COOKIE))
+        cookie = request.cookies.get(COOKIE)
+        device = check_cookie(key, cfg.pin, cookie)
+        if device is None and not cfg.require_pin:
+            return client_host(request)
         if device is None:
+            log.info("%s %s from %s: not logged in (%s)", request.method, request.url.path,
+                     client_host(request), "bad cookie" if cookie else "no cookie")
             raise HTTPException(401, "staff PIN required")
         return device
 
@@ -198,9 +207,9 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         return {**store.board(), "join_url": join_url(cfg)}
 
     @app.post("/api/login")
-    def login(body: LoginRequest, response: Response) -> dict:
+    def login(body: LoginRequest, request: Request, response: Response) -> dict:
         if not hmac.compare_digest(body.pin.encode(), cfg.pin.encode()):
-            log.warning("wrong PIN")
+            log.warning("wrong PIN from %s", client_host(request))
             raise HTTPException(401, "wrong PIN")
         response.set_cookie(
             COOKIE,
@@ -209,6 +218,8 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
             httponly=True,
             samesite="strict",
         )
+        log.info("login from %s [%s]", client_host(request),
+                 request.headers.get("user-agent", "")[:200])
         return {"ok": True}
 
     client_log_times: list[float] = []
@@ -220,7 +231,7 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         client_log_times[:] = [t for t in client_log_times if now - t < 60]
         if len(client_log_times) < CLIENT_LOG_PER_MINUTE:
             client_log_times.append(now)
-            host = request.client.host if request.client else "?"
+            host = client_host(request)
             agent = request.headers.get("user-agent", "")[:200]
             log.warning("browser error from %s on %s: %s [%s]",
                         host, body.page[:100], body.message[:500], agent)
@@ -234,7 +245,7 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
     @app.get("/api/me")
     def me(request: Request) -> dict:
         device = check_cookie(key, cfg.pin, request.cookies.get(COOKIE))
-        return {"staff": device is not None}
+        return {"staff": device is not None or not cfg.require_pin}
 
     # --- staff only ---
 
@@ -308,7 +319,9 @@ def main() -> None:
 
     cfg = config_module.load()
     setup_logging(cfg)
-    if cfg.pin == config_module.DEV_PIN:
+    if not cfg.require_pin:
+        log.warning("no PIN required: anyone on the network can use the staff pages")
+    elif cfg.pin == config_module.DEV_PIN:
         log.warning("using the development PIN %s; set `pin` in the config file", cfg.pin)
     app = create_app(cfg)
     log.info("QueuePi %s: database %s, listening on %s:%d", __version__, cfg.db_path, cfg.host, cfg.port)
