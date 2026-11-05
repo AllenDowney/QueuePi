@@ -19,9 +19,9 @@
   <details class="menu" id="menu">
     <summary aria-label="Menu">☰</summary>
     <nav>
-      <a href="/register">Register</a>
-      <a href="/kitchen">Kitchen</a>
-      <a href="/staff">Both (tablet)</a>
+      <a href="/register">Register only</a>
+      <a href="/kitchen">Kitchen only</a>
+      <a href="/staff">Everything</a>
       <button type="button" id="reset">End of day: clear board</button>
       <button type="button" id="logout">Log out this device</button>
     </nav>
@@ -29,7 +29,35 @@
 </header>
 
 <main>
-  <section class="register" id="register">
+  <section class="add" id="add">
+    <h2>Add <span class="muted">next on the receipts</span></h2>
+    <div class="next" id="next"></div>
+    <button type="button" class="other" id="other">⌨ Type a number</button>
+  </section>
+
+  <section class="onboard" id="onboard">
+    <h2>On the board <span class="muted">(newest first; tap ✕ to remove a mistake)</span></h2>
+    <ul class="added" id="added"></ul>
+  </section>
+
+  <section class="waiting-area" id="waiting-area">
+    <h2>Waiting <span class="muted">tap when ready</span></h2>
+    <div class="orders" id="waiting"></div>
+  </section>
+
+  <section class="ready-area" id="ready-area">
+    <h2 class="ready-title">Ready <span class="muted">tap when picked up</span></h2>
+    <div class="orders ready" id="ready"></div>
+  </section>
+
+  <details class="recent" id="recent">
+    <summary>Recent changes</summary>
+    <ul id="recent-list"></ul>
+  </details>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-body">
     <div class="entry">
       <div class="readout" id="readout" aria-live="polite">––</div>
       <div class="hint">Last two digits of the receipt</div>
@@ -48,21 +76,9 @@
       <button type="button" data-key="0">0</button>
       <button type="button" data-key="add" class="key-add">Add</button>
     </div>
-    <h2>On the board <span class="muted">(newest first; tap ✕ to remove a mistake)</span></h2>
-    <ul class="added" id="added"></ul>
-  </section>
-
-  <section class="kitchen" id="kitchen">
-    <h2>Waiting <span class="muted">tap when ready</span></h2>
-    <div class="orders" id="waiting"></div>
-    <h2 class="ready-title">Ready <span class="muted">tap when picked up</span></h2>
-    <div class="orders ready" id="ready"></div>
-    <details class="recent" id="recent">
-      <summary>Recent changes</summary>
-      <ul id="recent-list"></ul>
-    </details>
-  </section>
-</main>
+    <button type="button" class="cancel" id="sheet-cancel">Cancel</button>
+  </div>
+</div>
 
 <div class="toast" id="toast" hidden>
   <span id="toast-text"></span>

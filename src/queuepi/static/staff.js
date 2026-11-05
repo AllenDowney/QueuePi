@@ -11,7 +11,7 @@ const POLL_MS = 2000;
 const TOAST_MS = 8000;
 // Moves that reverse an earlier one (shown as "back to ..." in Recent changes).
 const UNDO_MOVES = new Set(["ready>waiting", "picked_up>ready", "cancelled>waiting"]);
-const LABELS = { register: "Register", kitchen: "Kitchen", both: "Register + Kitchen" };
+const LABELS = { register: "Register", kitchen: "Kitchen", both: "Everything" };
 
 // Older phone browsers lack replaceChildren and ?., so avoid newer syntax
 // and DOM methods here; test on the shop's actual devices.
@@ -120,12 +120,65 @@ function describe(status) {
   return { waiting: "waiting", ready: "ready", picked_up: "picked up", cancelled: "removed", cleared: "cleared" }[status] || status;
 }
 
-// --- register ---
+// --- adding orders ---
+
+// After a one-tap add, the buttons shift to the following numbers; ignore
+// taps for a moment so a double tap can't add the next number too.
+const NEXT_COOLDOWN_MS = 800;
+let nextLockedUntil = 0;
+
+function renderNext() {
+  const box = $("next");
+  clear(box);
+  const numbers = board.next || [];
+  const locked = Date.now() < nextLockedUntil;
+  for (const n of numbers) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "next-btn";
+    b.disabled = locked;
+    b.textContent = n;
+    b.setAttribute("aria-label", `Add ${n}`);
+    b.onclick = () => {
+      if (Date.now() < nextLockedUntil) return;
+      nextLockedUntil = Date.now() + NEXT_COOLDOWN_MS;
+      setTimeout(() => { if (board) renderNext(); }, NEXT_COOLDOWN_MS + 50);
+      addOrder(n);
+    };
+    box.appendChild(b);
+  }
+  if (numbers.length === 0) {
+    const p = document.createElement("p");
+    p.className = "muted";
+    p.textContent = "Type the first number of the day; after that, the next ones show here.";
+    box.appendChild(p);
+  }
+}
+
+async function addOrder(number) {
+  await act("/api/orders", { number }, (o) => `Added ${o.number}`);
+}
+
+// The keypad, in a sheet over the page, for numbers that aren't suggested.
+
+function openSheet() {
+  digits = "";
+  showDigits();
+  $("sheet").hidden = false;
+}
+
+function closeSheet() {
+  $("sheet").hidden = true;
+}
 
 function press(key) {
   if (key === "back") digits = digits.slice(0, -1);
-  else if (key === "add") return addOrder();
-  else if (digits.length < 2) digits += key;
+  else if (key === "add") {
+    if (digits === "") return;
+    const number = digits;
+    closeSheet();
+    return addOrder(number);
+  } else if (digits.length < 2) digits += key;
   showDigits();
 }
 
@@ -135,25 +188,26 @@ function showDigits() {
   el.classList.toggle("empty", digits === "");
 }
 
-async function addOrder() {
-  if (digits === "") return;
-  const number = digits;
-  digits = "";
-  showDigits();
-  await act("/api/orders", { number }, (o) => `Added ${o.number}`);
-}
+$("other").addEventListener("click", openSheet);
+$("sheet-cancel").addEventListener("click", closeSheet);
+$("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) closeSheet(); });
 
 $("keypad").addEventListener("click", (e) => {
   const button = e.target.closest("button");
   if (button && button.dataset.key) press(button.dataset.key);
 });
 
-// A hardware keyboard works too (desktop testing, or a tablet with a keyboard).
+// A hardware keyboard works too (desktop testing, or a tablet with a keyboard):
+// typing a digit opens the keypad.
 document.addEventListener("keydown", (e) => {
   if (VIEW === "kitchen" || !$("login").hidden || e.target.tagName === "INPUT") return;
-  if (/^[0-9]$/.test(e.key)) press(e.key);
-  else if (e.key === "Backspace") press("back");
-  else if (e.key === "Enter") { e.preventDefault(); press("add"); }
+  const open = !$("sheet").hidden;
+  if (/^[0-9]$/.test(e.key)) {
+    if (!open) openSheet();
+    press(e.key);
+  } else if (open && e.key === "Backspace") press("back");
+  else if (open && e.key === "Enter") press("add");
+  else if (open && e.key === "Escape") closeSheet();
   else return;
   e.preventDefault();
 });
@@ -243,11 +297,12 @@ async function loadRecent() {
 
 $("recent").addEventListener("toggle", () => { if ($("recent").open) loadRecent(); });
 
-// --- both ---
+// --- all views ---
 
 function render() {
   if (!board) return;
-  if (VIEW !== "kitchen") renderAdded();
+  if (VIEW !== "kitchen") renderNext();
+  if (VIEW === "register") renderAdded();
   if (VIEW !== "register") renderKitchen();
 }
 

@@ -142,6 +142,27 @@ def format_number(n: int) -> str:
     return f"{n:02d}"
 
 
+NEXT_COUNT = 3
+
+
+def next_numbers(last: int | None, active: set[int], count: int = NEXT_COUNT) -> list[str]:
+    """The numbers the register is most likely to add next: the ones after
+    the last order added, wrapping 99 -> 00, skipping numbers already on the
+    board. Receipts are numbered in sequence, but not every receipt becomes
+    an order, so offer a few. Empty if nothing has been added yet."""
+    if last is None:
+        return []
+    out = []
+    n = last
+    for _ in range(100):
+        n = (n + 1) % 100
+        if n not in active:
+            out.append(format_number(n))
+            if len(out) == count:
+                break
+    return out
+
+
 # --- records -----------------------------------------------------------------
 
 
@@ -264,10 +285,17 @@ class OrderStore:
                 "SELECT * FROM orders WHERE status = ? ORDER BY ready_at, id", (READY,)
             ).fetchall()
             version = conn.execute("SELECT COALESCE(MAX(id), 0) FROM events").fetchone()[0]
+            # The last real order (a mistaken one, now cancelled, doesn't count).
+            last = conn.execute(
+                "SELECT number FROM orders WHERE status != ? ORDER BY id DESC LIMIT 1",
+                (CANCELLED,),
+            ).fetchone()
             conn.execute("COMMIT")
+        active = {r["number"] for r in waiting} | {r["number"] for r in ready}
         return {
             "waiting": [Order.from_row(r).to_dict() for r in waiting],
             "ready": [Order.from_row(r).to_dict() for r in ready],
+            "next": next_numbers(last[0] if last else None, active),
             "version": version,
             "server_time": self.clock(),
         }

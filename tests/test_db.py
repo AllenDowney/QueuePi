@@ -394,3 +394,47 @@ def test_version_increases_on_every_change(store):
     with pytest.raises(DuplicateNumber):
         store.add("42")
     assert store.board()["version"] == v2  # failed writes change nothing
+
+
+# --- suggested next numbers ---------------------------------------------------
+
+
+def test_next_numbers_pure():
+    from queuepi.db import next_numbers
+    assert next_numbers(None, set()) == []
+    assert next_numbers(47, set()) == ["48", "49", "50"]
+    assert next_numbers(98, set()) == ["99", "00", "01"]
+    assert next_numbers(47, {48, 50}) == ["49", "51", "52"]
+    assert next_numbers(5, set(range(100)) - {7}) == ["07"]
+    assert next_numbers(5, set(range(100))) == []
+
+
+def test_board_next_follows_last_added(store):
+    assert store.board()["next"] == []
+    store.add("47", "t")
+    assert store.board()["next"] == ["48", "49", "50"]
+    store.add("49", "t")  # a receipt skipped
+    assert store.board()["next"] == ["50", "51", "52"]
+
+
+def test_board_next_skips_numbers_on_board(store):
+    store.add("49", "t")
+    store.add("47", "t")
+    assert store.board()["next"] == ["48", "50", "51"]
+
+
+def test_board_next_ignores_mistakes(store):
+    store.add("47", "t")
+    bad = store.add("74", "t")
+    store.transition(bad.id, "cancelled", expect="waiting", client="t")
+    assert store.board()["next"] == ["48", "49", "50"]
+
+
+def test_board_next_survives_pickup_and_reset(store):
+    o = store.add("47", "t")
+    store.transition(o.id, "ready", expect="waiting", client="t")
+    store.transition(o.id, "picked_up", expect="ready", client="t")
+    assert store.board()["next"] == ["48", "49", "50"]
+    store.add("48", "t")
+    store.reset("t")
+    assert store.board()["next"] == ["49", "50", "51"]

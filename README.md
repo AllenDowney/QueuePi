@@ -27,7 +27,7 @@ python scripts/simulate.py reset                         # clear the board
 
 In VS Code, the same commands are tasks (Terminal > Run Task…, all named `QueuePi: …`); `QueuePi: start` runs the server and the display together.
 
-Staff pages: open `http://localhost:8000/` and choose Register, Kitchen, or Both (`/register`, `/kitchen`, `/staff`). Phones on the same network can scan the QR code on the display.
+Staff pages: open `http://localhost:8000/` and choose Everything, Register only, or Kitchen only (`/staff`, `/register`, `/kitchen`). Phones on the same network can scan the QR code on the display.
 
 With no config file, the server uses development defaults: no PIN (anyone on the network can use the staff pages), database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
 
@@ -46,7 +46,7 @@ log_file = "/var/log/queuepi/queuepi.log"
 
 | Method | Path | Staff PIN | Purpose |
 |---|---|---|---|
-| GET | `/api/board` | no | waiting and ready orders, and a version number that changes with every update |
+| GET | `/api/board` | no | waiting and ready orders, the next likely numbers (`next`), and a version number that changes with every update |
 | POST | `/api/login` | — | `{"pin": "..."}`: sets a cookie, once per phone |
 | POST | `/api/orders` | yes | `{"number": "07"}`: add an order; 409 if that number is already on the board |
 | POST | `/api/orders/{id}/transition` | yes | `{"to": "ready", "expect": "waiting"}`; 409 if someone else changed it first |
