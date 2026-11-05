@@ -245,9 +245,9 @@ class Renderer:
         if view.join_url:
             self.draw_join(view.join_url, pg.Rect(1690, 18, 200, 232))
 
-        # Ready (left, bigger) and waiting (right).
-        ready_rect = pg.Rect(40, 280, 860, 750)
-        waiting_rect = pg.Rect(930, 280, 950, 750)
+        # Waiting (left) and ready (right), so numbers move left to right.
+        waiting_rect = pg.Rect(40, 280, 950, 750)
+        ready_rect = pg.Rect(1020, 280, 860, 750)
         self.draw_panel(ready_rect, READY_BG, "Ready for pickup", READY_NUM, view.ready, view, max_font=300)
         self.draw_panel(waiting_rect, WAITING_BG, "Waiting", WAITING_NUM, view.waiting, view, max_font=200)
 

@@ -176,6 +176,51 @@ body[data-view="both"] .register { margin: 0; }
 .recent li .what { flex: 1; }
 .recent li button { padding: 8px 14px; }
 
+/* A phone turned sideways: short and wide. Register: number and list on the
+   left, keypad on the right. Kitchen: waiting on the left, ready on the right,
+   so orders move left to right like on the customer display. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .bar { padding-top: 6px; padding-bottom: 6px; }
+  main {
+    padding: 10px max(16px, env(safe-area-inset-right)) 80px max(16px, env(safe-area-inset-left));
+  }
+  h2 { margin: 6px 0 8px; font-size: 18px; }
+
+  .register {
+    max-width: none;
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    grid-template-rows: auto auto 1fr;
+    column-gap: 24px;
+    align-items: start;
+  }
+  .register .entry { grid-column: 1; grid-row: 1; margin: 0 0 8px; }
+  .register h2 { grid-column: 1; grid-row: 2; }
+  .register .added { grid-column: 1; grid-row: 3; }
+  .register .keypad { grid-column: 2; grid-row: 1 / span 3; gap: 8px; }
+  .readout { font-size: 72px; }
+  /* Four rows of keys fill the height left under the header bar. */
+  .keypad button { height: max(48px, calc((100vh - 110px) / 4)); font-size: 30px; }
+  .keypad .key-add { font-size: 24px; }
+
+  .kitchen {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 24px;
+    align-items: start;
+  }
+  .kitchen > h2:first-child { grid-column: 1; grid-row: 1; }
+  #waiting { grid-column: 1; grid-row: 2; }
+  .kitchen .ready-title { grid-column: 2; grid-row: 1; }
+  #ready { grid-column: 2; grid-row: 2; }
+  .recent { grid-column: 1 / span 2; grid-row: 3; margin-top: 16px; }
+  .orders { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+  .orders button { height: 80px; }
+  .orders .num { font-size: 38px; }
+
+  .toast { font-size: 18px; padding: 10px 14px; }
+}
+
 /* Toast with undo */
 .toast {
   position: fixed;
