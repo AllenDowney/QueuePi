@@ -25,6 +25,8 @@ python scripts/simulate.py run --speed 10                # a live queue, 10x spe
 python scripts/simulate.py reset                         # clear the board
 ```
 
+In VS Code, the same commands are tasks (Terminal > Run Task…, all named `QueuePi: …`); `QueuePi: start` runs the server and the display together.
+
 Staff pages: open `http://localhost:8000/` and choose Register, Kitchen, or Both (`/register`, `/kitchen`, `/staff`). Phones on the same network can scan the QR code on the display.
 
 With no config file, the server uses development defaults: PIN `1234`, database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
