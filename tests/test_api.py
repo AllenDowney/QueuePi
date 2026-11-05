@@ -211,3 +211,20 @@ def test_lan_address_none():
     from queuepi.server import pick_lan_address
     assert pick_lan_address("") is None
     assert pick_lan_address("5: tun0    inet 10.8.0.2/24 scope global tun0\n") is None
+
+
+def test_client_log(client, caplog):
+    r = client.post("/api/client-log", json={"page": "/register", "message": "SyntaxError: boom"})
+    assert r.status_code == 200
+    assert "SyntaxError: boom" in caplog.text
+
+
+def test_client_log_rate_limited(client, caplog):
+    for i in range(40):
+        client.post("/api/client-log", json={"message": f"err{i}"})
+    assert "err29" in caplog.text and "err30" not in caplog.text
+
+
+def test_report_script_served(client):
+    assert client.get("/report.js").status_code == 200
+    assert '<script src="/report.js">' in client.get("/register").text

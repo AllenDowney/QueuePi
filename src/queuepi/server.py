@@ -17,6 +17,7 @@ import secrets
 import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -68,6 +69,14 @@ class LoginRequest(BaseModel):
 
 class ResetRequest(BaseModel):
     confirm: bool = False
+
+
+class ClientLog(BaseModel):
+    page: str = ""
+    message: str = ""
+
+
+CLIENT_LOG_PER_MINUTE = 30  # so a page stuck in an error loop can't flood the log
 
 
 # --- staff cookies -----------------------------------------------------------
@@ -200,6 +209,21 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
             httponly=True,
             samesite="strict",
         )
+        return {"ok": True}
+
+    client_log_times: list[float] = []
+
+    @app.post("/api/client-log")
+    def client_log(body: ClientLog, request: Request) -> dict:
+        """JavaScript errors from the staff pages, so they show up in the log."""
+        now = time.monotonic()
+        client_log_times[:] = [t for t in client_log_times if now - t < 60]
+        if len(client_log_times) < CLIENT_LOG_PER_MINUTE:
+            client_log_times.append(now)
+            host = request.client.host if request.client else "?"
+            agent = request.headers.get("user-agent", "")[:200]
+            log.warning("browser error from %s on %s: %s [%s]",
+                        host, body.page[:100], body.message[:500], agent)
         return {"ok": True}
 
     @app.post("/api/logout")

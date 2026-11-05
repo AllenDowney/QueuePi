@@ -13,7 +13,18 @@ const TOAST_MS = 8000;
 const UNDO_MOVES = new Set(["ready>waiting", "picked_up>ready", "cancelled>waiting"]);
 const LABELS = { register: "Register", kitchen: "Kitchen", both: "Register + Kitchen" };
 
+// Older phone browsers lack replaceChildren and ?., so avoid newer syntax
+// and DOM methods here; test on the shop's actual devices.
 const $ = (id) => document.getElementById(id);
+
+function clear(el) {
+  while (el.firstChild) el.removeChild(el.firstChild);
+}
+
+function fill(el, children) {
+  clear(el);
+  for (const c of children) el.appendChild(c);
+}
 
 let board = null;
 let clockOffset = 0; // server time minus device time, ms
@@ -133,8 +144,8 @@ async function addOrder() {
 }
 
 $("keypad").addEventListener("click", (e) => {
-  const key = e.target.closest("button")?.dataset.key;
-  if (key) press(key);
+  const button = e.target.closest("button");
+  if (button && button.dataset.key) press(button.dataset.key);
 });
 
 // A hardware keyboard works too (desktop testing, or a tablet with a keyboard).
@@ -149,7 +160,7 @@ document.addEventListener("keydown", (e) => {
 
 function renderAdded() {
   const list = $("added");
-  list.replaceChildren();
+  clear(list);
   const active = [...board.waiting, ...board.ready]
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
   for (const o of active) {
@@ -190,9 +201,9 @@ function orderButton(o, onTap) {
 }
 
 function renderKitchen() {
-  $("waiting").replaceChildren(...board.waiting.map((o) =>
+  fill($("waiting"), board.waiting.map((o) =>
     orderButton(o, () => transition(o, "ready", `${o.number} is ready`))));
-  $("ready").replaceChildren(...board.ready.map((o) =>
+  fill($("ready"), board.ready.map((o) =>
     orderButton(o, () => transition(o, "picked_up", `${o.number} picked up`))));
   renderAges();
 }
@@ -209,7 +220,7 @@ async function loadRecent() {
   const r = await api("GET", "/api/recent?limit=15");
   if (!r.ok) return;
   const list = $("recent-list");
-  list.replaceChildren();
+  clear(list);
   for (const e of r.data) {
     const li = document.createElement("li");
     const what = document.createElement("span");
