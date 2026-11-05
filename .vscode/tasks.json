@@ -1,0 +1,63 @@
+{
+  // Run with Terminal > Run Task… (or Ctrl+Shift+P, "Tasks: Run Task").
+  // "QueuePi: start" runs the server and the display together.
+  // Stop one with the trash can on its terminal, or "Tasks: Terminate Task".
+  "version": "2.0.0",
+  "options": { "cwd": "${workspaceFolder}" },
+  "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+  "tasks": [
+    {
+      "label": "QueuePi: start",
+      "dependsOn": ["QueuePi: server", "QueuePi: display (monitor)"],
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: server",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output queuepi-server",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: display (monitor)",
+      "detail": "Full screen on the external monitor, or the laptop screen if none; Esc or q quits",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output queuepi-display --display 1",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: display (window)",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output queuepi-display --windowed",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: simulate lunch rush",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output python scripts/simulate.py fill --waiting 25 --ready 4",
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: simulate live queue (10x)",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output python scripts/simulate.py run --speed 10",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: clear board",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output python scripts/simulate.py reset",
+      "problemMatcher": []
+    },
+    {
+      "label": "QueuePi: tests",
+      "type": "shell",
+      "command": "conda run -n QueuePi --no-capture-output pytest -q",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    }
+  ]
+}

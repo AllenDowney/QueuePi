@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 import threading
 import time
 import urllib.request
@@ -323,6 +324,10 @@ def main(argv: list[str] | None = None) -> None:
     os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
     if args.screenshot:
         os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
+    import warnings
+
+    # conda-forge's pygame warns that it wasn't built for AVX2; harmless.
+    warnings.filterwarnings("ignore", message=".*avx2", category=RuntimeWarning)
     import pygame
 
     pygame.init()
@@ -339,7 +344,13 @@ def main(argv: list[str] | None = None) -> None:
         w, h = (int(x) for x in args.size.lower().split("x"))
         screen = pygame.display.set_mode((w, h), pygame.RESIZABLE)
     else:
-        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=args.display)
+        monitors = pygame.display.get_num_displays()
+        display = args.display
+        if not 0 <= display < monitors:
+            display = monitors - 1
+            print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
+                  f"using monitor {display}", file=sys.stderr)
+        screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
         pygame.mouse.set_visible(False)
     pygame.display.set_caption("QueuePi")
 

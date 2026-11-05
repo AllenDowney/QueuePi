@@ -1,0 +1,5 @@
+{
+  "python.defaultInterpreterPath": "~/miniconda3/envs/QueuePi/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false
+}
