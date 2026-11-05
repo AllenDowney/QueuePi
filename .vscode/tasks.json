@@ -1,6 +1,6 @@
 {
-  // Run with Terminal > Run Task… (or Ctrl+Shift+P, "Tasks: Run Task").
-  // "QueuePi: start" runs the server and the display together.
+  // Ctrl+Shift+B runs "QueuePi: start": the server and the display together.
+  // Others: Ctrl+Shift+P, then "Tasks: Run Task".
   // Stop one with the trash can on its terminal, or "Tasks: Terminate Task".
   "version": "2.0.0",
   "options": { "cwd": "${workspaceFolder}" },
@@ -9,6 +9,7 @@
     {
       "label": "QueuePi: start",
       "dependsOn": ["QueuePi: server", "QueuePi: display (monitor)"],
+      "group": { "kind": "build", "isDefault": true },
       "problemMatcher": []
     },
     {

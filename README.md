@@ -27,7 +27,7 @@ python scripts/simulate.py ready --batch 3               # watch the display's r
 python scripts/simulate.py reset                         # clear the board
 ```
 
-In VS Code, the same commands are tasks (Terminal > Run Task…, all named `QueuePi: …`); `QueuePi: start` runs the server and the display together.
+In VS Code, Ctrl+Shift+B runs the server and the display together. The other commands are tasks too: Ctrl+Shift+P, then "Tasks: Run Task" (all named `QueuePi: …`).
 
 Staff pages: open `http://localhost:8000/` and choose Everything, Register only, or Kitchen only (`/staff`, `/register`, `/kitchen`). Phones on the same network can scan the QR code on the display.
 
