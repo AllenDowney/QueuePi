@@ -31,6 +31,8 @@ Staff pages: open `http://localhost:8000/` and choose Everything, Register only,
 
 With no config file, the server uses development defaults: no PIN (anyone on the network can use the staff pages), database in `./data/`, listening on all interfaces at port 8000, so phones on the same Wi-Fi can reach it at `http://<laptop-ip>:8000/`.
 
+To show the shop's logo on the display and staff pages, put a `logo.png` (transparent background works best) in the data directory. It isn't part of the repository.
+
 To change these, write a TOML file and point `QUEUEPI_CONFIG` at it (on the Pi, `/etc/queuepi/config.toml` is read automatically):
 
 ```toml

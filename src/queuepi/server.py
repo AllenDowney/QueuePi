@@ -160,6 +160,16 @@ def client_host(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
+def logo_version(cfg: Config) -> str | None:
+    """Changes when the logo file does, so clients know to fetch it again;
+    None if there's no logo."""
+    try:
+        st = cfg.logo_path.stat()
+    except OSError:
+        return None
+    return f"{st.st_mtime_ns}-{st.st_size}"
+
+
 def join_url(cfg: Config) -> str:
     """The URL phones use to reach the staff pages (for the display's QR code)."""
     if cfg.public_url:
@@ -204,7 +214,14 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
 
     @app.get("/api/board")
     def board() -> dict:
-        return {**store.board(), "join_url": join_url(cfg)}
+        return {**store.board(), "join_url": join_url(cfg), "logo": logo_version(cfg)}
+
+    @app.get("/api/logo")
+    def logo() -> FileResponse:
+        """The shop's logo, if there's a `logo.png` in the data directory."""
+        if logo_version(cfg) is None:
+            raise HTTPException(404, "no logo")
+        return FileResponse(cfg.logo_path, media_type="image/png")
 
     @app.post("/api/login")
     def login(body: LoginRequest, request: Request, response: Response) -> dict:

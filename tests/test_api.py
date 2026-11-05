@@ -260,3 +260,23 @@ def test_config_file_requires_pin(tmp_path):
     assert config.load(path).require_pin is True
     path.write_text('pin = "4821"\nrequire_pin = false\n')
     assert config.load(path).require_pin is False
+
+
+# --- shop logo ----------------------------------------------------------------
+
+
+def test_no_logo(client):
+    assert client.get("/api/board").json()["logo"] is None
+    assert client.get("/api/logo").status_code == 404
+
+
+def test_logo(client, cfg):
+    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    cfg.logo_path.write_bytes(b"\x89PNG fake")
+    version = client.get("/api/board").json()["logo"]
+    assert version
+    r = client.get("/api/logo")
+    assert r.status_code == 200 and r.content == b"\x89PNG fake"
+    assert r.headers["content-type"] == "image/png"
+    cfg.logo_path.write_bytes(b"\x89PNG different")
+    assert client.get("/api/board").json()["logo"] != version

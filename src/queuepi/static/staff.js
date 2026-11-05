@@ -299,8 +299,20 @@ $("recent").addEventListener("toggle", () => { if ($("recent").open) loadRecent(
 
 // --- all views ---
 
+// The shop's logo in the header bar, if the server has one.
+let logoVersion = null;
+
+function renderLogo() {
+  if (board.logo === logoVersion) return;
+  logoVersion = board.logo;
+  const img = $("logo");
+  if (logoVersion) img.src = "/api/logo?v=" + encodeURIComponent(logoVersion);
+  img.hidden = !logoVersion;
+}
+
 function render() {
   if (!board) return;
+  renderLogo();
   if (VIEW !== "kitchen") renderNext();
   if (VIEW === "register") renderAdded();
   if (VIEW !== "register") renderKitchen();

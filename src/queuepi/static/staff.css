@@ -1,18 +1,35 @@
-/* QueuePi staff pages. Dark, high contrast, big touch targets. */
+/* QueuePi staff pages. Dark, high contrast, big touch targets.
+
+   Colors come from the shop: plum from its website's buttons for Add, gold
+   and green from its logo for Waiting and Ready, on warm dark greys. The
+   customer display (display.py) uses the same gold and green. */
 
 :root {
-  --bg: #111418;
-  --panel: #1e232a;
-  --raised: #2b323b;
-  --text: #f0f0f0;
-  --muted: #9aa3ad;
-  --accent: #3d8bfd;
-  --ready: #50e68c;
-  --ready-bg: #0e3020;
+  --bg: #161412;
+  --panel: #262320;
+  --raised: #36322d;
+  --text: #f4f2f1;
+  --muted: #a8a094;
+  --paper: #f4f2f1;
+  --add: #6b5876;
+  --add-text: #c9b6d4;
+  --waiting: #f2c54a;
+  --waiting-bg: #2e2614;
+  --waiting-border: #5c4a1c;
+  --ready: #60d6a2;
+  --ready-bg: #003a2a;
+  --ready-border: #0b5c43;
   --danger: #e5484d;
-  --warn: #ffc83c;
-  --gap: 12px;
+  --warn: #f2c54a;
+  --gap: 8px;
+  --num: 36px;      /* order numbers, the same in every area */
+  --btn: 64px;      /* height of number buttons */
   color-scheme: dark;
+}
+
+/* Tablets and laptops have room for bigger targets. */
+@media (min-width: 700px) {
+  :root { --gap: 12px; --num: 44px; --btn: 84px; }
 }
 
 * { box-sizing: border-box; }
@@ -21,7 +38,7 @@ html, body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 18px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 16px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -39,22 +56,23 @@ button {
 button:active { filter: brightness(1.3); }
 button:disabled { opacity: 0.5; }
 
-h2 { font-size: 20px; margin: 20px 0 10px; }
-.muted { color: var(--muted); font-weight: normal; font-size: 15px; }
+h2 { font-size: 17px; margin: 14px 0 8px; }
+.muted { color: var(--muted); font-weight: normal; font-size: 14px; }
 
 /* Header bar */
 .bar {
   display: flex;
   align-items: center;
   gap: var(--gap);
-  padding: 10px 16px;
-  padding-top: max(10px, env(safe-area-inset-top));
+  padding: 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
   background: var(--panel);
   position: sticky;
   top: 0;
   z-index: 5;
 }
-.title { font-weight: 700; font-size: 20px; }
+.title { font-weight: 700; font-size: 18px; }
+.logo { height: 32px; padding: 2px 6px; background: var(--paper); border-radius: 6px; }
 .offline { background: var(--danger); padding: 4px 10px; border-radius: 8px; font-weight: 600; }
 .menu { margin-left: auto; position: relative; }
 .menu summary { list-style: none; font-size: 28px; padding: 0 8px; cursor: pointer; }
@@ -83,7 +101,7 @@ h2 { font-size: 20px; margin: 20px 0 10px; }
 }
 #reset { color: var(--warn); }
 
-main { padding: 16px; padding-bottom: 120px; }
+main { padding: 4px 12px 110px; }
 
 /* Which areas show, by page */
 body[data-view="register"] .waiting-area,
@@ -122,20 +140,21 @@ body[data-view="register"] .onboard { margin: 0 auto; }
   gap: var(--gap);
 }
 .next p { grid-column: 1 / -1; margin: 0 0 4px; }
+.add h2 { color: var(--add-text); }
 .next-btn {
-  height: 96px;
-  font-size: 48px;
+  height: var(--btn);
+  font-size: var(--num);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  background: var(--accent);
+  background: var(--add);
 }
 .next-btn:disabled { opacity: 0.4; }
 .other {
   display: block;
   width: 100%;
   margin-top: var(--gap);
-  height: 60px;
-  font-size: 20px;
+  height: 48px;
+  font-size: 17px;
   font-weight: 600;
 }
 
@@ -161,7 +180,7 @@ body[data-view="register"] .onboard { margin: 0 auto; }
 
 .entry { text-align: center; margin: 0 0 12px; }
 .readout {
-  font-size: 96px;
+  font-size: 80px;
   font-weight: 800;
   letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
@@ -177,11 +196,11 @@ body[data-view="register"] .onboard { margin: 0 auto; }
   gap: var(--gap);
 }
 .keypad button {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 700;
-  height: 76px;
+  height: 68px;
 }
-.keypad .key-add { background: var(--accent); font-size: 28px; }
+.keypad .key-add { background: var(--add); font-size: 28px; }
 .keypad .key-back { font-size: 30px; }
 
 .added { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -202,26 +221,28 @@ body[data-view="register"] .onboard { margin: 0 auto; }
 /* Kitchen */
 .orders {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   gap: var(--gap);
-  min-height: 60px;
+  min-height: 40px;
 }
 .orders button {
-  height: 96px;
+  height: var(--btn);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: var(--panel);
-  border: 2px solid var(--raised);
+  background: var(--waiting-bg);
+  border: 2px solid var(--waiting-border);
+  color: var(--waiting);
 }
-.orders .num { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-.orders .age { font-size: 14px; color: var(--muted); margin-top: 4px; }
-.orders.ready button { background: var(--ready-bg); border-color: #1d5a3b; color: var(--ready); }
+.orders .num { font-size: var(--num); font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.orders .age { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.orders.ready button { background: var(--ready-bg); border-color: var(--ready-border); color: var(--ready); }
+.waiting-area h2 { color: var(--waiting); }
 .orders:empty::after { content: "None"; color: var(--muted); align-self: center; }
 .ready-title { color: var(--ready); }
 
-.recent { margin-top: 28px; }
+.recent { margin-top: 20px; }
 .recent summary { color: var(--muted); cursor: pointer; padding: 8px 0; }
 .recent ul { list-style: none; padding: 0; margin: 0; }
 .recent li {
@@ -277,7 +298,7 @@ body[data-view="register"] .onboard { margin: 0 auto; }
   background: var(--panel);
   color: var(--text);
 }
-.login button { padding: 16px; background: var(--accent); font-size: 22px; font-weight: 700; }
+.login button { padding: 16px; background: var(--add); font-size: 22px; font-weight: 700; }
 .login .error { color: var(--danger); text-align: center; margin: 0; }
 
 [hidden] { display: none !important; }

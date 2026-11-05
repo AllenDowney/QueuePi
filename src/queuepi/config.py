@@ -42,6 +42,11 @@ class Config:
         return self.data_dir / "queuepi.db"
 
     @property
+    def logo_path(self) -> Path:
+        """Optional: the shop's logo, shown on the display and staff pages."""
+        return self.data_dir / "logo.png"
+
+    @property
     def secret_path(self) -> Path:
         return self.data_dir / "secret.key"
 

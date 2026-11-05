@@ -101,3 +101,23 @@ def test_same_board_same_view():
     b = board(waiting=["05", "17"], ready=["42"])
     assert make_view(b, 0.0, 1.0) == make_view(b, 0.5, 1.5)
     assert make_view(b, 0.0, 1.0) != make_view(board(waiting=["05"], ready=["42"]), 0.0, 1.0)
+
+
+def test_poller_fetches_logo_once_per_version(monkeypatch):
+    import io
+    from queuepi import display
+
+    calls = []
+
+    def fake_urlopen(url, timeout):
+        calls.append(url)
+        if url.endswith("/api/board"):
+            return io.BytesIO(b'{"waiting": [], "ready": [], "logo": "v1"}')
+        return io.BytesIO(b"PNGDATA")
+
+    monkeypatch.setattr(display.urllib.request, "urlopen", fake_urlopen)
+    p = display.Poller("http://x")
+    p.fetch_once()
+    p.fetch_once()
+    assert p.logo == ("v1", b"PNGDATA")
+    assert calls.count("http://x/api/logo") == 1
