@@ -121,3 +121,14 @@ def test_poller_fetches_logo_once_per_version(monkeypatch):
     p.fetch_once()
     assert p.logo == ("v1", b"PNGDATA")
     assert calls.count("http://x/api/logo") == 1
+
+
+def test_parse_xrandr_monitors():
+    from queuepi.display import parse_xrandr_monitors
+    text = """Monitors: 2
+ 0: +*eDP-1-1 1920/309x1080/173+0+0  eDP-1-1
+ 1: +DP-1-3 1920/527x1080/296+1920+0  DP-1-3
+"""
+    assert parse_xrandr_monitors(text) == [(1920, 1080, 0, 0), (1920, 1080, 1920, 0)]
+    assert parse_xrandr_monitors("") == []
+    assert parse_xrandr_monitors(" 0: +HDMI-1 1280/300x720/200+-1280+0  HDMI-1") == [(1280, 720, -1280, 0)]

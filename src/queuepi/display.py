@@ -446,6 +446,32 @@ class Renderer:
 # --- main --------------------------------------------------------------------
 
 
+def parse_xrandr_monitors(text: str) -> list[tuple[int, int, int, int]]:
+    """Monitors from `xrandr --listmonitors`, in its order, as
+    (width, height, x, y). Lines look like:
+        1: +DP-1-3 1920/527x1080/296+1920+0  DP-1-3"""
+    import re
+
+    pattern = re.compile(r"^\s*\d+:\s+\S+\s+(\d+)/\d+x(\d+)/\d+\+(-?\d+)\+(-?\d+)")
+    out = []
+    for line in text.splitlines():
+        m = pattern.match(line)
+        if m:
+            out.append(tuple(int(g) for g in m.groups()))
+    return out
+
+
+def x11_monitors() -> list[tuple[int, int, int, int]]:
+    """The monitors X knows about, or [] if xrandr isn't available."""
+    import subprocess
+
+    try:
+        out = subprocess.run(["xrandr", "--listmonitors"], capture_output=True, text=True, timeout=3)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return parse_xrandr_monitors(out.stdout)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="QueuePi customer display")
     ap.add_argument("--server", default="http://127.0.0.1:8000", help="QueuePi server URL")
@@ -482,14 +508,30 @@ def main(argv: list[str] | None = None) -> None:
     window_size = tuple(int(x) for x in args.size.lower().split("x"))
     monitors = pygame.display.get_num_displays()
     display = args.display
+    # Some SDL builds (conda-forge's, on X11) see several monitors as one wide
+    # screen. Then cover the chosen monitor with a borderless window instead,
+    # using where xrandr says it is.
+    geometry = None
     if not 0 <= display < monitors:
-        display = monitors - 1
-        print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
-              f"using monitor {display}", file=sys.stderr)
+        found = x11_monitors()
+        if 0 <= display < len(found) and monitors < len(found):
+            geometry = found[display]
+        else:
+            display = monitors - 1
+            print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
+                  f"using monitor {display}", file=sys.stderr)
 
     def open_screen(fullscreen: bool):
         """Full screen on the chosen monitor (no mouse pointer), or a window."""
-        if fullscreen:
+        if geometry:
+            w, h, x, y = geometry
+            if fullscreen:
+                os.environ["SDL_VIDEO_WINDOW_POS"] = f"{x},{y}"
+                screen = pygame.display.set_mode((w, h), pygame.NOFRAME)
+            else:
+                os.environ["SDL_VIDEO_WINDOW_POS"] = f"{x + 80},{y + 80}"
+                screen = pygame.display.set_mode(window_size, pygame.RESIZABLE)
+        elif fullscreen:
             screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN, display=display)
         else:
             screen = pygame.display.set_mode(window_size, pygame.RESIZABLE, display=display)
