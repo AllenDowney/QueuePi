@@ -1,11 +1,11 @@
 # Development environment for QueuePi.
-# Python 3.11 is the oldest version we support (Raspberry Pi OS Bookworm ships
-# 3.11), so developing on it catches anything newer that would break on the Pi.
+# Python 3.13 matches the Pi (Raspberry Pi OS Lite 64-bit, Debian 13 trixie,
+# ships 3.13), so the laptop runs the same version as the shop.
 name: QueuePi
 channels:
   - conda-forge
 dependencies:
-  - python=3.11
+  - python=3.13
   - fastapi
   - uvicorn
   - pygame

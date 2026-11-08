@@ -64,12 +64,27 @@ Write the display so it doesn't care: a plain Pygame program that takes `--windo
 
 Both units go in `deploy/systemd/`, with the one we pick as the default.
 
+## Spike results so far (2026-11-08)
+
+Hardware and system: Pi 4 Model B Rev 1.5, 1 GB; Pi OS Lite 64-bit build 2026-10-06 (Debian 13 trixie), kernel 6.18.50+rpt-rpi-v8, Mesa 26.2.6, Python 3.13.5. Monitor: Insignia NS-24M100, 1920×1080 at 60 Hz, on HDMI0 (`HDMI-A-1`).
+
+- **Which card:** `card1` is `vc4` (display, with the HDMI connectors); `card0` is `v3d` (render only); render node `renderD128`. SDL found the right card by itself.
+- **Option A works**, from an SSH session as the ordinary user `queuepi` (groups `video`, `render`, `input`): no root, no seat, no special VT handling. Full screen 1920×1080, steady 30 fps with the test card, worst frame about 20 ms.
+- **Pi OS Lite lacks the GL libraries** SDL loads at run time. Without them every driver reports "not available". Install `libgbm1 libegl1 libgles2` (Wayland for cage: `libwayland-client0 libwayland-egl1 libxkbcommon0`); `python3-pygame` from apt pulls in what it needs.
+- **Pygame sources:**
+  - Debian `python3-pygame` 2.6.1 (SDL 2.32.4): `kmsdrm` works.
+  - PyPI `pygame-ce` 2.5.8 wheel (SDL 2.32.10): `kmsdrm` works.
+  - PyPI `pygame` 2.6.1 wheel (SDL 2.28.4): **no `kmsdrm`** even with the libraries installed.
+- **Gotcha, blank screen:** by default SDL picks its desktop `opengl` renderer, but the Pi's EGL context is OpenGL ES, so every draw call fails (`GL_INVALID_OPERATION` with `MESA_DEBUG=1`) and the monitor shows black while the program reports 30 fps. Fix: **`SDL_RENDER_DRIVER=opengles2`**. Set it in the systemd unit (or in `display.py` when the driver is `kmsdrm`).
+- **The real display** (`queuepi-display`, Debian pygame in a venv with `--system-site-packages`) runs the same way and looks right. About 140 MB resident; ~2% CPU idle, just over one core (~106%) during the "order ready" animation, which looks smooth; 35 °C, no throttling.
+- **Option B (cage):** installed (`cage` 0.3.1). Run from SSH, it fails ("Could not open target tty: Permission denied"), as expected: it needs a seat and a TTY, so it has to be tested from a systemd unit with `TTYPath=/dev/tty1` and `PAMName=login`. Not tested yet; only needed if A proves fragile.
+
 ## Spike checklist (Task 3)
 
-- [ ] Fresh Pi OS Lite 64-bit on a Pi 4 (1 GB if available); record the release and kernel
-- [ ] `ls -l /dev/dri/`, `cat /sys/class/drm/*/status`: which card has HDMI
-- [ ] Minimal Pygame script (full-screen, big text, redraw once a second) with apt `python3-pygame`, `SDL_VIDEODRIVER=kmsdrm`, run from the console
-- [ ] Same with a venv and PyPI `pygame` / `pygame-ce` wheels: does `kmsdrm` exist? (`pygame.display.get_driver()`)
+- [x] Fresh Pi OS Lite 64-bit on a Pi 4 (1 GB if available); record the release and kernel (2026-11-08)
+- [x] `ls -l /dev/dri/`, `cat /sys/class/drm/*/status`: which card has HDMI (2026-11-08)
+- [x] Minimal Pygame script (full-screen, big text, redraw once a second) with apt `python3-pygame`, `SDL_VIDEODRIVER=kmsdrm`, run from the console (2026-11-08, from SSH; needs `SDL_RENDER_DRIVER=opengles2`)
+- [x] Same with a venv and PyPI `pygame` / `pygame-ce` wheels: does `kmsdrm` exist? (`pygame.display.get_driver()`) (2026-11-08: pygame-ce yes, pygame no)
 - [ ] Same script under `cage`
 - [ ] Each from a systemd unit at boot, as a non-root user
 - [ ] Boot with the monitor off; unplug and replug while running; pull the power
