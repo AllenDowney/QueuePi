@@ -164,14 +164,18 @@ def client_host(request: Request) -> str:
     return request.client.host if request.client else "?"
 
 
-def logo_version(cfg: Config) -> str | None:
-    """Changes when the logo file does, so clients know to fetch it again;
-    None if there's no logo."""
+def file_version(path: Path) -> str | None:
+    """Changes when the file does, so clients know to fetch it again; None
+    if there's no file."""
     try:
-        st = cfg.logo_path.stat()
+        st = path.stat()
     except OSError:
         return None
     return f"{st.st_mtime_ns}-{st.st_size}"
+
+
+def logo_version(cfg: Config) -> str | None:
+    return file_version(cfg.logo_path)
 
 
 def join_url(cfg: Config) -> str:
@@ -249,6 +253,7 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
             **store.board(),
             "join_url": join_url(cfg),
             "logo": logo_version(cfg),
+            "receipt": file_version(cfg.receipt_path),
             # Includes the Wi-Fi password: only while the codes are on the
             # display anyway, and only to devices already on the network.
             "setup": setup_info(cfg) if app.state.setup else None,
@@ -260,6 +265,13 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         if logo_version(cfg) is None:
             raise HTTPException(404, "no logo")
         return FileResponse(cfg.logo_path, media_type="image/png")
+
+    @app.get("/api/receipt")
+    def receipt() -> FileResponse:
+        """The shop's example receipt, if there's a `receipt.png` in the data directory."""
+        if file_version(cfg.receipt_path) is None:
+            raise HTTPException(404, "no receipt picture")
+        return FileResponse(cfg.receipt_path, media_type="image/png")
 
     @app.post("/api/login")
     def login(body: LoginRequest, request: Request, response: Response) -> dict:

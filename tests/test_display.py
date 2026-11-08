@@ -122,6 +122,7 @@ def test_poller_fetches_logo_once_per_version(monkeypatch):
     p.fetch_once()
     assert p.logo == ("v1", b"PNGDATA")
     assert calls.count("http://x/api/logo") == 1
+    assert p.receipt is None and "http://x/api/receipt" not in calls
 
 
 def test_parse_xrandr_monitors():

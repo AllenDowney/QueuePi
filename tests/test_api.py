@@ -322,3 +322,13 @@ def test_setup_needs_staff(cfg, store):
 
     c = TestClient(create_app(replace(cfg, require_pin=True), store))
     assert c.post("/api/setup", json={"show": False}).status_code == 401
+
+
+def test_receipt_picture(client, cfg):
+    assert client.get("/api/board").json()["receipt"] is None
+    assert client.get("/api/receipt").status_code == 404
+    cfg.data_dir.mkdir(parents=True, exist_ok=True)
+    cfg.receipt_path.write_bytes(b"\x89PNG receipt")
+    assert client.get("/api/board").json()["receipt"]
+    r = client.get("/api/receipt")
+    assert r.status_code == 200 and r.content == b"\x89PNG receipt"

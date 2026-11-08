@@ -198,6 +198,11 @@ def panel_cells(rect, panel: Panel, max_font: int) -> list[tuple[str, tuple[floa
 # --- polling -----------------------------------------------------------------
 
 
+# Optional pictures from the server's data directory: board[name] is a
+# version string (None if there's no such file), GET /api/<name> the PNG.
+IMAGES = ("logo", "receipt")
+
+
 class Poller(threading.Thread):
     """Fetches the board in the background so a slow server never freezes
     the screen."""
@@ -210,8 +215,17 @@ class Poller(threading.Thread):
         self.board: dict | None = None
         self.last_ok: float | None = None
         self.stopping = threading.Event()
-        self.logo_url = server.rstrip("/") + "/api/logo"
-        self.logo: tuple[str, bytes] | None = None  # (version, PNG bytes)
+        self.server = server.rstrip("/")
+        # The shop's optional pictures, by name: (version, PNG bytes).
+        self.images: dict[str, tuple[str, bytes]] = {}
+
+    @property
+    def logo(self) -> tuple[str, bytes] | None:
+        return self.images.get("logo")
+
+    @property
+    def receipt(self) -> tuple[str, bytes] | None:
+        return self.images.get("receipt")
 
     def fetch_once(self) -> None:
         try:
@@ -222,18 +236,19 @@ class Poller(threading.Thread):
         with self.lock:
             self.board = board
             self.last_ok = time.monotonic()
-        self.fetch_logo(board.get("logo"))
+        for name in IMAGES:
+            self.fetch_image(name, board.get(name))
 
-    def fetch_logo(self, version: str | None) -> None:
-        """Fetch the logo when the server has a new one; forget it if gone."""
+    def fetch_image(self, name: str, version: str | None) -> None:
+        """Fetch a picture when the server has a new one; forget it if gone."""
         if version is None:
-            self.logo = None
+            self.images.pop(name, None)
             return
-        if self.logo and self.logo[0] == version:
+        if name in self.images and self.images[name][0] == version:
             return
         try:
-            with urllib.request.urlopen(self.logo_url, timeout=5.0) as r:
-                self.logo = (version, r.read())
+            with urllib.request.urlopen(f"{self.server}/api/{name}", timeout=5.0) as r:
+                self.images[name] = (version, r.read())
         except OSError:
             pass  # try again next poll
 
@@ -259,20 +274,33 @@ class Renderer:
         self.fonts: dict[int, pygame.font.Font] = {}
         self.qr_cache: dict[tuple[str, int], pygame.Surface] = {}
         self.logo: pygame.Surface | None = None
+        self.receipt: pygame.Surface | None = None
+        self.receipt_scaled: pygame.Surface | None = None
         self.big_cache: dict[str, pygame.Surface] = {}
+
+    def load_png(self, png: bytes | None) -> pygame.Surface | None:
+        if not png:
+            return None
+        import io
+
+        try:
+            img = self.pg.image.load(io.BytesIO(png), "image.png")
+        except self.pg.error:
+            return None  # a broken file: carry on without it
+        # Faster to draw once converted, which needs a window.
+        return img.convert_alpha() if self.pg.display.get_surface() else img
 
     def set_logo(self, png: bytes | None) -> None:
         """Use these PNG bytes as the shop logo (None: no logo)."""
-        self.logo = None
-        if png:
-            import io
+        self.logo = self.load_png(png)
 
-            try:
-                img = self.pg.image.load(io.BytesIO(png), "logo.png")
-                # Faster to draw once converted, which needs a window.
-                self.logo = img.convert_alpha() if self.pg.display.get_surface() else img
-            except self.pg.error:
-                pass  # a broken file: carry on without it
+    def set_receipt(self, png: bytes | None) -> None:
+        """Use this picture of the shop's receipt (None: draw a generic one)."""
+        self.receipt = self.load_png(png)
+        self.receipt_scaled = None
+
+    def set_image(self, name: str, png: bytes | None) -> None:
+        {"logo": self.set_logo, "receipt": self.set_receipt}[name](png)
 
     def font(self, size: int) -> pygame.font.Font:
         if size not in self.fonts:
@@ -359,6 +387,8 @@ class Renderer:
         self.text(lines[1], size, TEXT, topleft=(left, top + int(size * 1.1)))
         if view.setup:
             self.draw_setup(view.setup, pg.Rect(1160, 12, 730, 232))
+        elif self.receipt:
+            self.draw_receipt_picture(pg.Rect(1370, 18, 520, 214))
         else:
             self.draw_receipt(pg.Rect(1390, 55, 470, 160))
 
@@ -405,6 +435,16 @@ class Renderer:
         if number not in self.big_cache:
             self.big_cache[number] = self.font(animation.MAX_CENTER_SIZE).render(number, True, READY_NUM)
         return self.big_cache[number]
+
+    def draw_receipt_picture(self, rect: pygame.Rect) -> None:
+        """The shop's own receipt picture, fitted to the right of rect."""
+        if self.receipt_scaled is None:
+            w, h = self.receipt.get_size()
+            scale = min(rect.width / w, rect.height / h)
+            self.receipt_scaled = self.pg.transform.smoothscale(
+                self.receipt, (int(w * scale), int(h * scale)))
+        img = self.receipt_scaled
+        self.canvas.blit(img, img.get_rect(midright=rect.midright))
 
     def draw_receipt(self, rect: pygame.Rect) -> None:
         pg = self.pg
@@ -566,7 +606,9 @@ def main(argv: list[str] | None = None) -> None:
         poller.fetch_once()
         board, last_ok = poller.snapshot()
         renderer = Renderer()
-        renderer.set_logo(poller.logo[1] if poller.logo else None)
+        for name in IMAGES:
+            image = poller.images.get(name)
+            renderer.set_image(name, image[1] if image else None)
         pygame.image.save(renderer.draw(make_view(board, last_ok, time.monotonic())), args.screenshot)
         return
 
@@ -613,7 +655,7 @@ def main(argv: list[str] | None = None) -> None:
     last_view: View | None = None  # the last view drawn; None forces a redraw
     prev_view: View | None = None  # the view one loop ago, for where numbers were
     last_draw = 0.0
-    logo_version: str | None = None
+    image_versions: dict[str, str | None] = {name: None for name in IMAGES}
     watcher = animation.ReadyWatcher()
     rng = random.Random()
     celebration: animation.Celebration | None = None
@@ -636,11 +678,12 @@ def main(argv: list[str] | None = None) -> None:
                 last_view = None
 
         now = time.monotonic()
-        logo = poller.logo
-        if (logo[0] if logo else None) != logo_version:
-            logo_version = logo[0] if logo else None
-            renderer.set_logo(logo[1] if logo else None)
-            last_view = None
+        for name in IMAGES:
+            image = poller.images.get(name)
+            if (image[0] if image else None) != image_versions[name]:
+                image_versions[name] = image[0] if image else None
+                renderer.set_image(name, image[1] if image else None)
+                last_view = None
         board, last_ok = poller.snapshot()
         view = make_view(board, last_ok, now)
         view = View(view.state, view.ready, view.waiting, view.setup, screen.get_size())

@@ -53,6 +53,12 @@ class Config:
         return self.data_dir / "logo.png"
 
     @property
+    def receipt_path(self) -> Path:
+        """Optional: a picture of the shop's receipt with the last two digits
+        highlighted, shown on the display (else it draws a generic one)."""
+        return self.data_dir / "receipt.png"
+
+    @property
     def secret_path(self) -> Path:
         return self.data_dir / "secret.key"
 
