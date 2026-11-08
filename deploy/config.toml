@@ -9,8 +9,9 @@ data_dir = "/var/lib/queuepi"
 host = "0.0.0.0"
 port = 80
 
-# Logs go to the journal: journalctl -u queuepi-server
-# log_file = "/var/log/queuepi/queuepi.log"
+# Logs go to the journal (journalctl -u queuepi-server), which Pi OS keeps in
+# memory only, and to this file (1 MB x 4 at most), which survives a power cut.
+log_file = "/var/log/queuepi/queuepi.log"
 
 # The address in the join QR code. Unset: the Pi's current LAN address.
 # public_url = "http://queuepi.local/"

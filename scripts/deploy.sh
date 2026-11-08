@@ -4,8 +4,9 @@
 # Pushes to the git remote "pi" (the Pi's ~/QueuePi, a non-bare repo with
 # receive.denyCurrentBranch=updateInstead, so the push updates its files).
 # The Pi's venv has an editable install, so code changes take effect on
-# restart; it is reinstalled only when pyproject.toml changes. Restarts the
-# QueuePi services if they are installed.
+# restart; it is reinstalled only when pyproject.toml changes. Installs the
+# systemd units when they change, and restarts the QueuePi services if they
+# are installed. /etc/queuepi/config.toml is never touched.
 #
 # Only committed work is deployed; uncommitted changes stay on the laptop.
 #
@@ -32,6 +33,14 @@ old=$2
 if [ "$old" = none ] || ! git diff --quiet "$old" HEAD -- pyproject.toml; then
     echo "pyproject.toml changed: reinstalling"
     .venv/bin/pip install -q -e .
+fi
+if [ "$old" = none ] || ! git diff --quiet "$old" HEAD -- deploy/systemd; then
+    echo "systemd units changed: installing"
+    sudo install -m 0644 deploy/systemd/*.service /etc/systemd/system/
+    sudo systemctl daemon-reload
+fi
+if ! git diff --quiet "$old" HEAD -- deploy/config.toml 2>/dev/null; then
+    echo "Note: deploy/config.toml changed; /etc/queuepi/config.toml is not updated automatically."
 fi
 for unit in queuepi-server queuepi-display; do
     if systemctl is-enabled --quiet "$unit" 2>/dev/null; then

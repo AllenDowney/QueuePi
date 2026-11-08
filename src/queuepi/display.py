@@ -461,6 +461,36 @@ def parse_xrandr_monitors(text: str) -> list[tuple[int, int, int, int]]:
     return out
 
 
+def connected_outputs(drm_dir: str = "/sys/class/drm") -> list[str]:
+    """Video outputs with a monitor attached, from the kernel's DRM status
+    files (e.g. ["card1-HDMI-A-1"]). Writeback connectors aren't monitors."""
+    from pathlib import Path
+
+    found = []
+    for status in sorted(Path(drm_dir).glob("card*-*/status")):
+        name = status.parent.name
+        if "Writeback" in name:
+            continue
+        try:
+            if status.read_text().strip() == "connected":
+                found.append(name)
+        except OSError:
+            continue
+    return found
+
+
+def wait_for_monitor(drm_dir: str = "/sys/class/drm", poll: float = 2.0) -> None:
+    """Block until a monitor is connected. SDL's kmsdrm driver can't start
+    without one, and only looks for monitors when it starts, so on the Pi we
+    wait here, quietly, rather than crash and restart every few seconds."""
+    if connected_outputs(drm_dir):
+        return
+    print("queuepi-display: no monitor connected; waiting for one", file=sys.stderr, flush=True)
+    while not connected_outputs(drm_dir):
+        time.sleep(poll)
+    print("queuepi-display: monitor connected", file=sys.stderr, flush=True)
+
+
 def x11_monitors() -> list[tuple[int, int, int, int]]:
     """The monitors X knows about, or [] if xrandr isn't available."""
     import subprocess
@@ -494,6 +524,8 @@ def main(argv: list[str] | None = None) -> None:
     warnings.filterwarnings("ignore", message=".*avx2", category=RuntimeWarning)
     import pygame
 
+    if os.environ.get("SDL_VIDEODRIVER") == "kmsdrm" and not args.screenshot:
+        wait_for_monitor()
     pygame.init()
     poller = Poller(args.server)
 
@@ -517,7 +549,7 @@ def main(argv: list[str] | None = None) -> None:
         if 0 <= display < len(found) and monitors < len(found):
             geometry = found[display]
         else:
-            display = monitors - 1
+            display = max(monitors - 1, 0)
             print(f"queuepi-display: no monitor {args.display} ({monitors} connected); "
                   f"using monitor {display}", file=sys.stderr)
 

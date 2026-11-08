@@ -17,6 +17,9 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 # /var/lib/queuepi, owned by the service user: database, logo, cookie key.
 StateDirectory=queuepi
 StateDirectoryMode=0750
+# /var/log/queuepi, for log_file in the config. On the SD card, so the logs
+# survive a power cut (Pi OS keeps the journal in memory only).
+LogsDirectory=queuepi
 Restart=always
 RestartSec=2
 

@@ -132,3 +132,17 @@ def test_parse_xrandr_monitors():
     assert parse_xrandr_monitors(text) == [(1920, 1080, 0, 0), (1920, 1080, 1920, 0)]
     assert parse_xrandr_monitors("") == []
     assert parse_xrandr_monitors(" 0: +HDMI-1 1280/300x720/200+-1280+0  HDMI-1") == [(1280, 720, -1280, 0)]
+
+
+def test_connected_outputs(tmp_path):
+    from queuepi.display import connected_outputs
+
+    for name, status in [("card1-HDMI-A-1", "disconnected"), ("card1-HDMI-A-2", "connected"),
+                         ("card1-Writeback-1", "unknown")]:
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "status").write_text(status + "\n")
+    (tmp_path / "card1").mkdir()  # the card itself has no status file
+    assert connected_outputs(str(tmp_path)) == ["card1-HDMI-A-2"]
+    (tmp_path / "card1-HDMI-A-2" / "status").write_text("disconnected\n")
+    assert connected_outputs(str(tmp_path)) == []
+    assert connected_outputs(str(tmp_path / "missing")) == []
