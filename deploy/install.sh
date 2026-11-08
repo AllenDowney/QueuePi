@@ -34,12 +34,38 @@ else
     echo "keeping existing /etc/queuepi/config.toml"
 fi
 
+echo "== hotspot profile"
+# From wifi_ssid / wifi_password in the config; skipped if they aren't set.
+# The profile is named QueuePi whatever the network name (hotspot.sh uses it).
+read_setting() {
+    sudo python3 -c 'import sys, tomllib; print(tomllib.load(open("/etc/queuepi/config.toml", "rb")).get(sys.argv[1]) or "")' "$1"
+}
+ssid=$(read_setting wifi_ssid)
+psk=$(read_setting wifi_password)
+hotspot=no
+if nmcli -t -f NAME connection show | grep -qx QueuePi; then
+    echo "keeping existing NetworkManager connection QueuePi"
+    hotspot=yes
+elif [ -n "$ssid" ] && [ -n "$psk" ]; then
+    sudo nmcli connection add type wifi ifname uap0 con-name QueuePi autoconnect no ssid "$ssid" \
+        802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 1 \
+        ipv4.method shared ipv4.addresses 10.42.0.1/24 ipv6.method disabled \
+        wifi-sec.key-mgmt wpa-psk wifi-sec.proto rsn wifi-sec.pairwise ccmp wifi-sec.group ccmp \
+        wifi-sec.psk "$psk"
+    hotspot=yes
+else
+    echo "no wifi_ssid / wifi_password in the config: no hotspot"
+fi
+
 echo "== systemd units"
-sudo install -m 0644 deploy/systemd/queuepi-server.service deploy/systemd/queuepi-display.service \
-    /etc/systemd/system/
+sudo install -m 0644 deploy/systemd/*.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now queuepi-server.service queuepi-display.service
 sudo systemctl restart queuepi-server.service queuepi-display.service
+if [ "$hotspot" = yes ]; then
+    sudo systemctl enable queuepi-hotspot.service
+    echo "hotspot starts at boot (queuepi-hotspot.service)"
+fi
 
 echo "== status"
 sleep 3

@@ -1,0 +1,18 @@
+[Unit]
+Description=QueuePi Wi-Fi hotspot (built-in radio, alongside wlan0)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/home/queuepi/QueuePi/deploy/hotspot.sh
+# Tears the hotspot down on stop, so a restart starts clean.
+ExecStop=-/usr/bin/nmcli connection down QueuePi
+ExecStop=-/usr/sbin/iw dev uap0 del
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=90
+
+[Install]
+WantedBy=multi-user.target
