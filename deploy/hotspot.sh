@@ -23,7 +23,11 @@ log() { echo "queuepi-hotspot: $*"; }
 ch=""
 i=0
 while [ "$i" -lt "$WAIT" ]; do
-    ch=$($IW dev wlan0 info 2>/dev/null | awk '$1 == "channel" {print $2; exit}')
+    # `iw dev wlan0 info` shows a channel even before wlan0 has joined
+    # anything (34, a 5 GHz default, early in boot), so check the link first.
+    if $IW dev wlan0 link 2>/dev/null | grep -q '^Connected to'; then
+        ch=$($IW dev wlan0 info 2>/dev/null | awk '$1 == "channel" {print $2; exit}')
+    fi
     [ -n "$ch" ] && break
     sleep 1
     i=$((i + 1))
