@@ -18,3 +18,6 @@ dist/
 
 # Default development data dir (database, cookie-signing key)
 data/
+
+# Images for experiments (shop logo, receipt photo and pictures); kept out of the public repo
+images/
