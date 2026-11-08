@@ -34,7 +34,17 @@ else
     ch=1
     log "wlan0 hasn't joined a network after ${WAIT}s; using channel $ch"
 fi
-if [ "$ch" -gt 14 ]; then band=a; else band=bg; fi
+if [ "$ch" -gt 14 ]; then
+    band=a
+    # 5 GHz channels 52-144 need radar detection (DFS) and can't host an
+    # access point; others work but fewer phones and less range. Pin the
+    # client connection to 2.4 GHz to avoid this:
+    #   nmcli connection modify <wlan0 connection> 802-11-wireless.band bg
+    log "WARNING: wlan0 is on 5 GHz channel $ch; the hotspot must share it." \
+        "Pin wlan0's connection to 2.4 GHz (802-11-wireless.band bg)."
+else
+    band=bg
+fi
 
 # 2. The access-point interface, with its own (locally administered) MAC.
 if ! $IW dev "$AP" info >/dev/null 2>&1; then

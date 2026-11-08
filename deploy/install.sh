@@ -56,6 +56,14 @@ elif [ -n "$ssid" ] && [ -n "$psk" ]; then
 else
     echo "no wifi_ssid / wifi_password in the config: no hotspot"
 fi
+if [ "$hotspot" = yes ]; then
+    # The hotspot shares wlan0's channel; keep wlan0 on 2.4 GHz so it can't
+    # roam to a 5 GHz radar (DFS) channel, where an access point can't run.
+    for con in $(nmcli -t -f NAME,TYPE connection show | awk -F: '$2 == "802-11-wireless" && $1 != "QueuePi" {print $1}'); do
+        sudo nmcli connection modify "$con" 802-11-wireless.band bg
+        echo "pinned Wi-Fi connection $con to 2.4 GHz"
+    done
+fi
 
 echo "== systemd units"
 sudo install -m 0644 deploy/systemd/*.service /etc/systemd/system/
