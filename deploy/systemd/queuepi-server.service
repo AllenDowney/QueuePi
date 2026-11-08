@@ -1,0 +1,24 @@
+[Unit]
+Description=QueuePi order server
+# Start without waiting for the network: phones can only connect once Wi-Fi is
+# up, but the display talks to the server over loopback.
+After=local-fs.target
+
+[Service]
+Type=exec
+User=queuepi
+Group=queuepi
+WorkingDirectory=/home/queuepi/QueuePi
+Environment=QUEUEPI_CONFIG=/etc/queuepi/config.toml
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/queuepi/QueuePi/.venv/bin/queuepi-server
+# Port 80 without running as root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+# /var/lib/queuepi, owned by the service user: database, logo, cookie key.
+StateDirectory=queuepi
+StateDirectoryMode=0750
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

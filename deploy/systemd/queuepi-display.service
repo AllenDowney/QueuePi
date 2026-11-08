@@ -1,0 +1,27 @@
+[Unit]
+Description=QueuePi customer display (Pygame on SDL kmsdrm)
+# The display only talks to the server over HTTP, and shows "connecting"
+# until it answers, so it doesn't need the server to be up first; starting
+# after it just avoids a moment of connection warning at boot.
+After=queuepi-server.service
+Wants=queuepi-server.service
+
+[Service]
+Type=exec
+User=queuepi
+Group=queuepi
+SupplementaryGroups=video render input
+WorkingDirectory=/home/queuepi/QueuePi
+# Draw straight to the HDMI output through DRM/KMS, no compositor.
+Environment=SDL_VIDEODRIVER=kmsdrm
+# Required: SDL otherwise picks its desktop OpenGL renderer, every draw call
+# fails on the Pi's OpenGL ES, and the monitor stays black.
+Environment=SDL_RENDER_DRIVER=opengles2
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/queuepi/QueuePi/.venv/bin/queuepi-display --server http://127.0.0.1:80
+# If the monitor is missing at boot, SDL can fail to start; keep trying.
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

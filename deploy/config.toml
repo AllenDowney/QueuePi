@@ -1,0 +1,16 @@
+# QueuePi settings on the Pi; installed as /etc/queuepi/config.toml.
+# See src/queuepi/config.py for all settings.
+
+# Staff PIN. Off for the prototype; decide before the pilot (PROJECT_BOARD Task 6).
+require_pin = false
+# pin = "4821"
+
+data_dir = "/var/lib/queuepi"
+host = "0.0.0.0"
+port = 80
+
+# Logs go to the journal: journalctl -u queuepi-server
+# log_file = "/var/log/queuepi/queuepi.log"
+
+# The address in the join QR code. Unset: the Pi's current LAN address.
+# public_url = "http://queuepi.local/"
