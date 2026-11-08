@@ -71,6 +71,10 @@ class ResetRequest(BaseModel):
     confirm: bool = False
 
 
+class SetupRequest(BaseModel):
+    show: bool
+
+
 class ClientLog(BaseModel):
     page: str = ""
     message: str = ""
@@ -178,6 +182,29 @@ def join_url(cfg: Config) -> str:
     return f"http://{lan_address()}{port}/"
 
 
+def wifi_join_text(ssid: str, password: str | None) -> str:
+    """What a Wi-Fi join QR code encodes (the format phone cameras
+    understand), with the special characters escaped."""
+
+    def esc(s: str) -> str:
+        for ch in '\\;,:"':
+            s = s.replace(ch, "\\" + ch)
+        return s
+
+    if not password:
+        return f"WIFI:T:nopass;S:{esc(ssid)};;"
+    return f"WIFI:T:WPA;S:{esc(ssid)};P:{esc(password)};;"
+
+
+def setup_info(cfg: Config) -> dict:
+    """The join codes the display shows in setup mode."""
+    return {
+        "url": join_url(cfg),
+        "ssid": cfg.wifi_ssid,
+        "wifi": wifi_join_text(cfg.wifi_ssid, cfg.wifi_password) if cfg.wifi_ssid else None,
+    }
+
+
 # --- the app -----------------------------------------------------------------
 
 
@@ -189,6 +216,10 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
     app = FastAPI(title="QueuePi", version=__version__, docs_url=None, redoc_url=None)
     app.state.store = store
     app.state.config = cfg
+    # Setup mode: the display shows the join codes (Wi-Fi and staff page)
+    # until a staff device hides them. On at every start, so after a power
+    # cut new devices can join; customers rarely see it.
+    app.state.setup = True
 
     @app.exception_handler(QueueError)
     async def queue_error(request: Request, exc: QueueError) -> JSONResponse:
@@ -214,7 +245,14 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
 
     @app.get("/api/board")
     def board() -> dict:
-        return {**store.board(), "join_url": join_url(cfg), "logo": logo_version(cfg)}
+        return {
+            **store.board(),
+            "join_url": join_url(cfg),
+            "logo": logo_version(cfg),
+            # Includes the Wi-Fi password: only while the codes are on the
+            # display anyway, and only to devices already on the network.
+            "setup": setup_info(cfg) if app.state.setup else None,
+        }
 
     @app.get("/api/logo")
     def logo() -> FileResponse:
@@ -287,6 +325,13 @@ def create_app(cfg: Config | None = None, store: OrderStore | None = None) -> Fa
         order = store.undo(event_id, client=device)
         log.info("undo event %d: %s now %s by %s", event_id, order.number, order.status, device)
         return order.to_dict()
+
+    @app.post("/api/setup")
+    def setup(body: SetupRequest, device: str = Depends(staff)) -> dict:
+        """Show or hide the join codes on the display."""
+        app.state.setup = body.show
+        log.info("join codes %s by %s", "shown" if body.show else "hidden", device)
+        return {"setup": body.show}
 
     @app.post("/api/reset")
     def reset(body: ResetRequest, device: str = Depends(staff)) -> dict:

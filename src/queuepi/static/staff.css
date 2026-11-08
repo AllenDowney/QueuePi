@@ -103,6 +103,17 @@ h2 { font-size: 17px; margin: 14px 0 8px; }
 
 main { padding: 4px 12px 110px; }
 
+.setup-banner {
+  display: flex; align-items: center; gap: 12px;
+  margin: 8px 12px 0; padding: 8px 12px;
+  background: var(--raised); border-radius: 10px;
+}
+.setup-banner span { flex: 1; }
+.setup-banner button {
+  font: inherit; font-weight: 600; color: var(--text); background: var(--add);
+  border: 0; border-radius: 8px; padding: 10px 18px; min-height: 44px;
+}
+
 /* Which areas show, by page */
 body[data-view="register"] .waiting-area,
 body[data-view="register"] .ready-area,

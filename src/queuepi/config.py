@@ -10,6 +10,8 @@ exists, else nothing (development defaults: no PIN needed). Example:
     port = 8000
     log_file = "/var/log/queuepi/queuepi.log"
     public_url = "http://queuepi.local/"   # optional; for the join QR code
+    wifi_ssid = "QueuePi"                  # optional; the staff Wi-Fi network,
+    wifi_password = "..."                  # shown as a join code in setup mode
 """
 
 from __future__ import annotations
@@ -36,6 +38,10 @@ class Config:
     # The address phones should use, shown as a QR code on the display.
     # None: work it out from this computer's LAN address and the port.
     public_url: str | None = None
+    # The staff Wi-Fi network (the Pi's hotspot). If set, setup mode shows a
+    # code that joins it, so nobody types the password on a phone.
+    wifi_ssid: str | None = None
+    wifi_password: str | None = None
 
     @property
     def db_path(self) -> Path:
@@ -76,8 +82,9 @@ def load(path: str | Path | None = None) -> Config:
     unknown = set(raw) - known
     if unknown:
         raise ValueError(f"{path}: unknown settings {sorted(unknown)}")
-    if "pin" in raw:
-        raw["pin"] = str(raw["pin"])
+    for key in ("pin", "wifi_password"):
+        if key in raw:
+            raw[key] = str(raw[key])
     for key in ("data_dir", "log_file"):
         if raw.get(key) is not None:
             raw[key] = Path(raw[key])

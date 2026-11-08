@@ -23,11 +23,17 @@
       <a href="/register">Register only</a>
       <a href="/kitchen">Kitchen only</a>
       <a href="/staff">Everything</a>
+      <button type="button" id="show-setup">Show join codes on display</button>
       <button type="button" id="reset">End of day: clear board</button>
       <button type="button" id="logout">Log out this device</button>
     </nav>
   </details>
 </header>
+
+<div class="setup-banner" id="setup-banner" hidden>
+  <span>Join codes are showing on the display.</span>
+  <button type="button" id="hide-setup">Done</button>
+</div>
 
 <main>
   <section class="add" id="add">

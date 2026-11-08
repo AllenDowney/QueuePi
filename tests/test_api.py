@@ -280,3 +280,45 @@ def test_logo(client, cfg):
     assert r.headers["content-type"] == "image/png"
     cfg.logo_path.write_bytes(b"\x89PNG different")
     assert client.get("/api/board").json()["logo"] != version
+
+
+def test_wifi_join_text_escapes():
+    from queuepi.server import wifi_join_text
+
+    assert wifi_join_text("QueuePi", "abc") == "WIFI:T:WPA;S:QueuePi;P:abc;;"
+    assert wifi_join_text('a;b,c:d"e\\f', "p;w") == r'WIFI:T:WPA;S:a\;b\,c\:d\"e\\f;P:p\;w;;'
+    assert wifi_join_text("Open", None) == "WIFI:T:nopass;S:Open;;"
+
+
+def test_setup_mode_shows_then_hides(cfg, store):
+    from dataclasses import replace
+
+    from fastapi.testclient import TestClient
+
+    from queuepi.server import create_app
+
+    c = TestClient(create_app(replace(cfg, wifi_ssid="QueuePi", wifi_password="secret1234",
+                                      public_url="http://10.42.0.1/", require_pin=False), store))
+    setup = c.get("/api/board").json()["setup"]
+    assert setup == {"url": "http://10.42.0.1/", "ssid": "QueuePi",
+                     "wifi": "WIFI:T:WPA;S:QueuePi;P:secret1234;;"}
+    assert c.post("/api/setup", json={"show": False}).json() == {"setup": False}
+    assert c.get("/api/board").json()["setup"] is None
+    c.post("/api/setup", json={"show": True})
+    assert c.get("/api/board").json()["setup"]["ssid"] == "QueuePi"
+
+
+def test_setup_without_wifi(client):
+    setup = client.get("/api/board").json()["setup"]
+    assert setup["wifi"] is None and setup["url"].startswith("http://")
+
+
+def test_setup_needs_staff(cfg, store):
+    from dataclasses import replace
+
+    from fastapi.testclient import TestClient
+
+    from queuepi.server import create_app
+
+    c = TestClient(create_app(replace(cfg, require_pin=True), store))
+    assert c.post("/api/setup", json={"show": False}).status_code == 401

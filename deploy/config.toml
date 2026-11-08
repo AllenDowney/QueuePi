@@ -13,5 +13,12 @@ port = 80
 # memory only, and to this file (1 MB x 4 at most), which survives a power cut.
 log_file = "/var/log/queuepi/queuepi.log"
 
-# The address in the join QR code. Unset: the Pi's current LAN address.
-# public_url = "http://queuepi.local/"
+# The address in the staff-page join code. Unset: the Pi's current LAN
+# address. With the hotspot, use the Pi's address on it.
+# public_url = "http://10.42.0.1/"
+
+# The staff Wi-Fi network (the Pi's hotspot). If set, setup mode shows a code
+# that joins it. This file then holds a password: keep it readable only by
+# root and the queuepi group (install.sh does).
+# wifi_ssid = "QueuePi"
+# wifi_password = "..."

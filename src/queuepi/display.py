@@ -128,8 +128,17 @@ class View:
     state: str
     ready: Panel
     waiting: Panel
-    join_url: str | None
+    # Setup mode: (Wi-Fi join text or None, network name or None, staff page
+    # URL); None when the join codes are hidden.
+    setup: tuple[str | None, str | None, str] | None
     size: tuple[int, int] = (WIDTH, HEIGHT)
+
+
+def setup_of(board: dict | None) -> tuple[str | None, str | None, str] | None:
+    s = board.get("setup") if board else None
+    if not s or not s.get("url"):
+        return None
+    return (s.get("wifi"), s.get("ssid"), s["url"])
 
 
 def make_view(board: dict | None, last_ok: float | None, now: float) -> View:
@@ -150,7 +159,7 @@ def make_view(board: dict | None, last_ok: float | None, now: float) -> View:
         state=state,
         ready=panel(ready_numbers, READY_GRIDS),
         waiting=panel(waiting_numbers, WAITING_GRIDS),
-        join_url=board.get("join_url") if board else None,
+        setup=setup_of(board),
     )
 
 
@@ -248,7 +257,7 @@ class Renderer:
         self.pg = pygame
         self.canvas = pygame.Surface((WIDTH, HEIGHT))
         self.fonts: dict[int, pygame.font.Font] = {}
-        self.qr_cache: tuple[str, int, pygame.Surface] | None = None
+        self.qr_cache: dict[tuple[str, int], pygame.Surface] = {}
         self.logo: pygame.Surface | None = None
         self.big_cache: dict[str, pygame.Surface] = {}
 
@@ -283,8 +292,8 @@ class Renderer:
         return size
 
     def qr(self, url: str, size: int) -> pygame.Surface:
-        if self.qr_cache and self.qr_cache[:2] == (url, size):
-            return self.qr_cache[2]
+        if (url, size) in self.qr_cache:
+            return self.qr_cache[url, size]
         import segno
 
         rows = list(segno.make(url, error="m").matrix_iter(border=2))
@@ -297,7 +306,9 @@ class Renderer:
                     small.set_at((x, y), (0, 0, 0))
         scale = size // n
         surf = self.pg.transform.scale(small, (n * scale, n * scale))  # crisp, no smoothing
-        self.qr_cache = (url, size, surf)
+        if len(self.qr_cache) > 8:
+            self.qr_cache.clear()
+        self.qr_cache[url, size] = surf
         return surf
 
     def draw(self, view: View, celebration: animation.Celebration | None = None,
@@ -332,7 +343,8 @@ class Renderer:
         return c
 
     def draw_header(self, view: View) -> None:
-        """How to find your number, an example receipt, the join code."""
+        """How to find your number and an example receipt; in setup mode,
+        the join codes instead of the receipt."""
         pg = self.pg
         left = 60
         if self.logo:
@@ -340,13 +352,15 @@ class Renderer:
             self.draw_logo(card)
             left = card.right + 40
         lines = ["Your order number is the", "last two digits of your receipt."]
-        size = min(self.fitted_size(line, 1120 - left, 76) for line in lines)
+        right = 1120 if view.setup else 1340
+        size = min(self.fitted_size(line, right - left, 76) for line in lines)
         top = 125 - int(size * 1.05)
         self.text(lines[0], size, TEXT, topleft=(left, top))
         self.text(lines[1], size, TEXT, topleft=(left, top + int(size * 1.1)))
-        self.draw_receipt(pg.Rect(1170, 45, 470, 160))
-        if view.join_url:
-            self.draw_join(view.join_url, pg.Rect(1690, 18, 200, 232))
+        if view.setup:
+            self.draw_setup(view.setup, pg.Rect(1160, 12, 730, 232))
+        else:
+            self.draw_receipt(pg.Rect(1390, 55, 470, 160))
 
     def draw_celebration(self, view: View, cel: animation.Celebration, now: float) -> None:
         pg = self.pg
@@ -416,10 +430,29 @@ class Renderer:
         img = pg.transform.smoothscale(self.logo, (int(w * scale), int(h * scale)))
         self.canvas.blit(img, img.get_rect(center=card.center))
 
-    def draw_join(self, url: str, rect: pygame.Rect) -> None:
-        qr = self.qr(url, 190)
+    def draw_setup(self, setup: tuple[str | None, str | None, str], rect: pygame.Rect) -> None:
+        """Join codes for staff devices: the Wi-Fi network, then the page."""
+        wifi, ssid, url = setup
+        codes = []
+        if wifi:
+            codes.append((wifi, f"1. Wi-Fi {ssid}" if ssid else "1. Wi-Fi"))
+        codes.append((url, "2. Staff page" if wifi else "Staff page"))
+        x = rect.right
+        for text, label in reversed(codes):
+            self.draw_join(text, label, self.pg.Rect(x - 240, rect.top, 240, rect.height))
+            x -= 260
+        steps = ["Staff setup", "Scan to join,", "then tap Done", "on the staff page."]
+        self.text(steps[0], 38, TEXT, topleft=(rect.left, rect.top + 30))
+        for i, line in enumerate(steps[1:]):
+            self.text(line, 30, MUTED, topleft=(rect.left, rect.top + 85 + 36 * i))
+
+    def draw_join(self, text: str, label: str, rect: pygame.Rect) -> None:
+        qr = self.qr(text, 190)
         self.canvas.blit(qr, qr.get_rect(midtop=(rect.centerx, rect.top)))
-        self.text("Staff", 26, MUTED, midtop=(rect.centerx, rect.top + qr.get_height() + 4))
+        size = self.fitted_size(label, rect.width, 28)
+        # Labels on a common line: codes of different lengths come out
+        # slightly different sizes.
+        self.text(label, size, MUTED, midtop=(rect.centerx, rect.top + 194))
 
     def draw_panel(self, rect, bg, title, color, panel: Panel, view: View, max_font: int,
                    hide: frozenset[str] = frozenset()) -> None:
@@ -610,7 +643,7 @@ def main(argv: list[str] | None = None) -> None:
             last_view = None
         board, last_ok = poller.snapshot()
         view = make_view(board, last_ok, now)
-        view = View(view.state, view.ready, view.waiting, view.join_url, screen.get_size())
+        view = View(view.state, view.ready, view.waiting, view.setup, screen.get_size())
 
         # Orders that just became ready get a celebration, one batch at a time.
         newly_ready = watcher.update(board, view.state in ("ok", "stale"))

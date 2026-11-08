@@ -28,7 +28,7 @@ fi
 
 echo "== config"
 if [ ! -f /etc/queuepi/config.toml ]; then
-    sudo install -D -m 0644 deploy/config.toml /etc/queuepi/config.toml
+    sudo install -D -m 0640 -g queuepi deploy/config.toml /etc/queuepi/config.toml
     echo "installed /etc/queuepi/config.toml"
 else
     echo "keeping existing /etc/queuepi/config.toml"

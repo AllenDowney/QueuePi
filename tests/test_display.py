@@ -26,6 +26,7 @@ def board(waiting=(), ready=()):
         "ready": [order(n) for n in ready],
         "version": 1,
         "join_url": "http://10.42.0.1:8000/",
+        "setup": {"url": "http://10.42.0.1:8000/", "ssid": "QueuePi", "wifi": "WIFI:T:WPA;S:QueuePi;P:x;;"},
     }
 
 
@@ -93,7 +94,7 @@ def test_lost_hides_lists():
 
 def test_never_connected():
     view = make_view(None, last_ok=None, now=5.0)
-    assert view.state == "connecting" and view.join_url is None
+    assert view.state == "connecting" and view.setup is None
 
 
 def test_same_board_same_view():
@@ -146,3 +147,13 @@ def test_connected_outputs(tmp_path):
     (tmp_path / "card1-HDMI-A-2" / "status").write_text("disconnected\n")
     assert connected_outputs(str(tmp_path)) == []
     assert connected_outputs(str(tmp_path / "missing")) == []
+
+
+def test_setup_codes_follow_the_board():
+    from queuepi.display import make_view
+
+    b = board(waiting=["12"])
+    view = make_view(b, last_ok=100.0, now=100.5)
+    assert view.setup == ("WIFI:T:WPA;S:QueuePi;P:x;;", "QueuePi", "http://10.42.0.1:8000/")
+    b["setup"] = None
+    assert make_view(b, last_ok=100.0, now=100.5).setup is None

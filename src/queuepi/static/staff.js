@@ -310,9 +310,27 @@ function renderLogo() {
   img.hidden = !logoVersion;
 }
 
+// Setup mode: the display shows the join codes until someone taps Done.
+function renderSetup() {
+  $("setup-banner").hidden = !board.setup;
+}
+
+async function setSetup(show) {
+  const r = await api("POST", "/api/setup", { show: show });
+  if (r.ok) refresh(true);
+}
+
+$("hide-setup").addEventListener("click", () => setSetup(false));
+
+$("show-setup").addEventListener("click", () => {
+  $("menu").open = false;
+  setSetup(true);
+});
+
 function render() {
   if (!board) return;
   renderLogo();
+  renderSetup();
   if (VIEW !== "kitchen") renderNext();
   if (VIEW === "register") renderAdded();
   if (VIEW !== "register") renderKitchen();
